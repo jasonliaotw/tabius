@@ -1,8 +1,8 @@
 import { render } from "preact";
 import { useContext, useEffect, useState } from "preact/hooks";
 import TabgroupCard from "./components/TabgroupCard";
-import { withBlock } from "./background/background";
 import {
+	withBlock,
 	addUrlToBlocklist,
 	deleteUrlFromBlocklist,
 	generateId,
@@ -15,6 +15,7 @@ import {
 import { SavedGroup, getOneStorageItem } from "./const";
 import SavedGroupCard from "./components/SavedGroupCard";
 import ToastContextProvider, { ToastContext } from "./context/ToastContext";
+import I18nProvider, { useI18n } from "./context/I18nContext";
 
 function handleOptionButton() {
 	if (chrome.runtime.openOptionsPage) {
@@ -51,6 +52,7 @@ const ActionPage = () => {
 	const [savedGroups, setSavedGroups] = useState<SavedGroup[]>([]);
 
 	const { showToastNotification } = useContext(ToastContext);
+	const { t } = useI18n();
 
 	// const [inATabGroup, setInATabGroup] = useState(false)
 
@@ -170,11 +172,11 @@ const ActionPage = () => {
 				function () {
 					setSavedGroups((prev) => prev.concat(newGroupToSave)); //updating the state with new group
 					saveAndUpdateUUID(uuid);
-					showToastNotification("Tab group saved", "green");
+					showToastNotification(t("toast_group_saved"), "green");
 				}
 			);
 		} catch (error) {
-			showToastNotification("Error saving item", "red");
+			showToastNotification(t("toast_error_saving"), "red");
 			console.log(error);
 		}
 	}
@@ -234,11 +236,11 @@ const ActionPage = () => {
 				},
 				function () {
 					setSavedGroups(sg);
-					showToastNotification("Saved tab to group", "green");
+					showToastNotification(t("toast_tab_saved_to_group"), "green");
 				}
 			);
 		} catch (error) {
-			showToastNotification("Error saving item", "red");
+			showToastNotification(t("toast_error_saving"), "red");
 		}
 	}
 
@@ -260,11 +262,11 @@ const ActionPage = () => {
 				},
 				function () {
 					setSavedGroups(sg);
-					showToastNotification("Tab deleted from storage", "green");
+					showToastNotification(t("toast_tab_deleted"), "green");
 				}
 			);
 		} catch (error) {
-			showToastNotification("Error deleting item", "red");
+			showToastNotification(t("toast_error_deleting"), "red");
 		}
 	}
 
@@ -291,7 +293,7 @@ const ActionPage = () => {
 				}
 			);
 		} catch (error) {
-			showToastNotification("Storage error", "red");
+			showToastNotification(t("toast_storage_error"), "red");
 		}
 	}
 
@@ -323,14 +325,14 @@ const ActionPage = () => {
 					<div class="title">Tabius</div>
 
 					<img
-						title="Rate it"
+						title={t("popup_rate")}
 						class="settingsbutton"
 						src="/icons/heart.svg"
 						onClick={handleRatingButton}
 					/>
 
 					<img
-						title="Tabius settings"
+						title={t("popup_settings")}
 						class="settingsbutton"
 						src="/icons/settings.svg"
 						onClick={handleOptionButton}
@@ -340,9 +342,9 @@ const ActionPage = () => {
 					style={{ color: siteIsBlocked ? "#008751" : "#ff004d" }}
 					className="blockbutton"
 					onClick={handleBlockButton}
-					title="Quickly blacklist or unblacklist this site from creating new tab groups">
+					title={t("popup_block_tooltip")}>
 					{/* <p> */}
-					{siteIsBlocked ? "Enable for this domain" : "Disable for this domain"}
+					{siteIsBlocked ? t("popup_enable_domain") : t("popup_disable_domain")}
 					{/* </p> */}
 				</div>
 			</div>
@@ -351,12 +353,12 @@ const ActionPage = () => {
 					<span
 						style={{ opacity: showSavedGroups ? "25%" : "100%" }}
 						className="toggle">
-						Current
+						{t("popup_current")}
 					</span>
 					<span
 						style={{ opacity: showSavedGroups ? "100%" : "25%" }}
 						className="toggle">
-						Saved
+						{t("popup_saved")}
 					</span>
 				</span>
 
@@ -382,13 +384,13 @@ const ActionPage = () => {
 							onClick={minimizeAllGroups}
 							icon="/icons/minus.svg"
 							color="#febc30"
-							tooltip="Minimize all tab groups"
+							tooltip={t("popup_minimize_all")}
 						/>
 						<TrafficLightButton
 							onClick={maximizeAllGroups}
 							icon="/icons/enlarge.svg"
 							color="#28c840"
-							tooltip="Maximize all tab groups"
+							tooltip={t("popup_maximize_all")}
 						/>
 					</div>
 				)}
@@ -412,7 +414,7 @@ const ActionPage = () => {
 					) : (
 						<div className="nothing">
 							<img src="/icons/emoji-puzzled.svg" />
-							<p>Nothing to see here</p>
+							<p>{t("popup_nothing")}</p>
 						</div>
 					)}
 				</div>
@@ -433,7 +435,7 @@ const ActionPage = () => {
 			) : (
 				<div className="nothing">
 					<img src="/icons/emoji-puzzled.svg" />
-					<p>Nothing to see here</p>
+					<p>{t("popup_nothing")}</p>
 				</div>
 			)}
 		</div>
@@ -441,8 +443,10 @@ const ActionPage = () => {
 };
 
 render(
-	<ToastContextProvider>
-		<ActionPage />
-	</ToastContextProvider>,
+	<I18nProvider>
+		<ToastContextProvider>
+			<ActionPage />
+		</ToastContextProvider>
+	</I18nProvider>,
 	document.getElementById("action")!
 );

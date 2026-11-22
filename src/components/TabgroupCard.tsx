@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { Colors } from "../const";
 import GroupDetails from "./GroupDetails";
 import { TrafficLightButton } from "./TrafficLightButton";
+import { useI18n } from "../context/I18nContext";
 
 export function truncateText(text?: string, length = 18) {
 	if (!text) return;
@@ -36,6 +37,7 @@ export default function TabgroupCard({
 }: // count,
 TabgroupCardProps) {
 	const [count, setCount] = useState(0);
+	const { t } = useI18n();
 	const [groupDetailIsOpen, setGroupDetailOpen] = useState(!collapsed);
 
 	useEffect(() => {
@@ -50,7 +52,7 @@ TabgroupCardProps) {
 		setCount(tabNumbers.length);
 	}
 
-	function toggleGroupDetails(e: MouseEvent) {
+	function toggleGroupDetails() {
 		setGroupDetailOpen((prev) => !prev);
 	}
 
@@ -89,7 +91,7 @@ TabgroupCardProps) {
 			}}>
 			<div
 				className="tabgroupCard"
-				title="Click to open"
+				title={t("card_click_to_open")}
 				onClick={toggleGroupDetails}>
 				<div className="tabgroupData">
 					<span className="tabgroupName">{truncateText(name)}</span>
@@ -100,25 +102,25 @@ TabgroupCardProps) {
 						onClick={minimizeGroup}
 						icon="/icons/minus.svg"
 						color="#febc30"
-						tooltip="Minimize tab group"
+						tooltip={t("card_minimize")}
 					/>
 					<TrafficLightButton
 						onClick={maximizeGroup}
 						icon="/icons/enlarge.svg"
 						color="#28c840"
-						tooltip="Open tab group"
+						tooltip={t("card_open")}
 					/>
 					<TrafficLightButton
 						onClick={closeGroup}
 						icon="/icons/cancel.svg"
 						color="#fe5f58"
-						tooltip="Close all tabs in the group"
+						tooltip={t("card_close_all")}
 					/>
 				</div>
 			</div>
 			{groupDetailIsOpen && (
 				<div className="addButton" onClick={() => saveHandler(id, color, name)}>
-					+ Save this tab group
+					{t("card_save_group")}
 				</div>
 			)}
 			{groupDetailIsOpen && <GroupDetails id={id} />}

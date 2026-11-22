@@ -19,6 +19,7 @@ export const EXCLUDED_URL = [
 	"chrome-extension://",
 	"edge://",
 	"extensions://",
+	"about:",
 ];
 
 // storage keys
@@ -43,11 +44,12 @@ export type StorageKey =
 	| "naming"
 	| "regardless"
 	| "savedgroups"
-	| "savedgroupids";
+	| "savedgroupids"
+	| "language";
 
 export async function getOneStorageItem(itemKey: StorageKey) {
 	try {
-		return chrome.storage.sync.get(itemKey);
+		return await chrome.storage.sync.get(itemKey);
 	} catch (error) {}
 }
 //TODO: make the return value typesafe. DONE
@@ -71,8 +73,12 @@ type StorageObject = {
 };
 
 export async function setMultipleStorageObjects(items: StorageObject[]) {
+	const data: Record<string, boolean | number | string> = {};
+	for (const { itemKey, value } of items) {
+		data[itemKey] = value;
+	}
 	try {
-		chrome.storage.sync.set({ ...items });
+		await chrome.storage.sync.set(data);
 	} catch (error) {}
 }
 
@@ -84,10 +90,25 @@ export type GROUP_NAMING =
 	| "nameless"
 	| "title";
 
+// A blacklist entry is either a domain/url keyword (the original format,
+// `type` is missing on entries saved by older versions) or a tab group name.
+export type BlockListType = "domain" | "group";
+
 export type BlockList = {
 	id: string;
-	blockedUrl: string;
+	type?: BlockListType; // undefined = "domain"
+	blockedUrl?: string; // domain entries
+	groupName?: string; // group entries
 };
+
+export function isGroupBlockEntry(item?: BlockList) {
+	return item?.type === "group";
+}
+
+// group names are compared trimmed and case-insensitively
+export function normalizeGroupName(name?: string) {
+	return (name ?? "").trim().toLowerCase();
+}
 
 export type CustomRule = {
 	id: string;
@@ -96,24 +117,73 @@ export type CustomRule = {
 	color?: chrome.tabGroups.ColorEnum;
 };
 
-export const blockHint = `Please put the website URL in this format: "https://somewebsite.com"
-					or "http://sub.domain.com" without the quotes. Note: only the origin
-					part of the URL (https://www.domain.com) is considered when
-					blacklisting. The rules are applicable when you open new tabs from
-					these websites - in other words - when they are the{" "}
-					original tab. The rules are also subdomain sensitive,
-					meaning "https://en.wikipedia.com" is treated differently than
-					"https://wikipedia.com".`;
+export function getHostname(url?: string) {
+	if (!url) return;
+	try {
+		return new URL(url).hostname;
+	} catch {
+		return;
+	}
+}
 
-export const customHint = `Please put the website URL in this format: "https://somewebsite.com"
-					or "http://sub.domain.com" without the quotes. Note: only the origin
-					part of the URL (https://www.domain.com) is considered. The rules are
-					applicable when you open new tabs from these websites - in other words
-					- when they are the
-					original tab. The rules are also
-					subdomain sensitive, meaning "https://www.wikipedia.com" is
-					treated differently than "https://wikipedia.com". Duplicate entries
-					will be ignored.`;
+// Normalizes a user-entered keyword/URL: lowercase, no protocol, no "www.",
+// no trailing slash or dot. "https://www.GitHub.com/" -> "github.com"
+export function normalizeUrlKeyword(term: string) {
+	return term
+		.trim()
+		.toLowerCase()
+		.replace(/^https?:\/\//, "")
+		.replace(/^www\./, "")
+		.replace(/\/+$/, "")
+		.replace(/\.$/, "");
+}
+
+// A keyword without "/" is matched against the hostname only.
+// A keyword with "/" (e.g. "github.com/myorg") is matched against hostname + path.
+// Query strings and fragments are never matched, so a search for "github"
+// on google.com does not count as a GitHub page.
+export function matchesUrlKeyword(term: string, url?: string) {
+	if (!term || !url) return false;
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return false;
+	}
+	const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+	if (!term.includes("/")) {
+		return hostname.includes(term);
+	}
+	return (hostname + parsed.pathname.toLowerCase()).includes(term);
+}
+
+export function getCustomRuleSearchTerms(ruleUrl: string) {
+	return Array.from(
+		new Set(
+			ruleUrl
+				.split(",")
+				.map(normalizeUrlKeyword)
+				.filter(Boolean)
+		)
+	);
+}
+
+export function findCustomRule(
+	rules: CustomRule[] | undefined,
+	url?: string
+): CustomRule | undefined {
+	if (!url || !Array.isArray(rules)) {
+		return;
+	}
+
+	return rules.find(
+		(rule) =>
+			typeof rule?.url === "string" &&
+			getCustomRuleSearchTerms(rule.url).some((term) =>
+				matchesUrlKeyword(term, url)
+			)
+	);
+}
 
 export const tabiusAscii = `
 ████████╗ █████╗ ██████╗ ██╗██╗   ██╗███████╗    ██████╗     ██████╗ 

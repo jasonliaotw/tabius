@@ -1,11 +1,23 @@
-import { BlockRule, getHostname } from "./background/background";
-import { BlockList, EXCLUDED_URL, getOneStorageItem } from "./const";
+import {
+	BlockList,
+	EXCLUDED_URL,
+	getOneStorageItem,
+	isGroupBlockEntry,
+	matchesUrlKeyword,
+	normalizeGroupName,
+	normalizeUrlKeyword,
+} from "./const";
+
+// NOTE: this module is shared by the popup, the options page and the
+// background service worker. Never register chrome.* event listeners here.
+
+export type BlockRule = BlockList;
 
 export function isTheURLNative(url?: string) {
 	if (!url) {
 		return false;
 	}
-	return EXCLUDED_URL.some((item) => url.includes(item));
+	return EXCLUDED_URL.some((item) => url.startsWith(item));
 }
 
 export function generateId() {
@@ -22,60 +34,115 @@ export function isValidUrl(inputurl: string) {
 	return u.protocol === "https:" || u.protocol === "http:";
 }
 
-//returns true if blocklist has been added successfully
-export async function addUrlToBlocklist(url?: string) {
-	if (!url) return false;
+function isUrlBlockedBy(item: BlockRule | undefined, url: string) {
+	if (!item?.blockedUrl || isGroupBlockEntry(item)) return false;
+	return matchesUrlKeyword(normalizeUrlKeyword(item.blockedUrl), url);
+}
 
-	const id = generateId();
+function isGroupBlockedBy(item: BlockRule | undefined, groupName: string) {
+	return (
+		isGroupBlockEntry(item) &&
+		!!groupName &&
+		normalizeGroupName(item?.groupName) === groupName
+	);
+}
 
-	if (!isValidUrl(url)) return false;
-
-	let origin = new URL(url).origin;
-
-	if (!origin) return false;
-
+export async function getBlocklist(): Promise<BlockList[]> {
 	try {
-		//todo: fix the type warning
-		const { blocklist } = (await getOneStorageItem("blocklist")) as {
-			blocklist: BlockList[];
-		}; // explicit casting - not the best solution
-		const newSite: BlockList = {
-			id: id,
-			blockedUrl: origin
-		};
+		const stored = await getOneStorageItem("blocklist");
+		const blocklist: unknown = stored?.blocklist;
+		return Array.isArray(blocklist) ? blocklist : [];
+	} catch {
+		return [];
+	}
+}
 
-		let newBlockList = [...blocklist, newSite];
-
-		chrome.storage.sync.set({
-			blocklist: newBlockList
-		});
-
+async function saveBlocklist(blocklist: BlockList[]) {
+	try {
+		await chrome.storage.sync.set({ blocklist });
 		return true;
-	} catch (error) {
+	} catch {
 		return false;
 	}
 }
 
+// returns true if the url matches any domain entry in the blacklist
+export async function withBlock(url?: string): Promise<boolean> {
+	if (!url) {
+		return false;
+	}
+	const blocklist = await getBlocklist();
+	return blocklist.some((item) => isUrlBlockedBy(item, url));
+}
+
+// returns true if a tab group with this name is blacklisted
+export async function isGroupNameBlocked(groupName?: string) {
+	const name = normalizeGroupName(groupName);
+	if (!name) return false;
+	const blocklist = await getBlocklist();
+	return blocklist.some((item) => isGroupBlockedBy(item, name));
+}
+
+// returns true if the tab group with this id has a blacklisted name
+export async function isGroupBlocked(groupId?: number) {
+	if (groupId === undefined || groupId === -1) return false;
+	try {
+		const group = await chrome.tabGroups.get(groupId);
+		return await isGroupNameBlocked(group.title);
+	} catch {
+		return false;
+	}
+}
+
+//returns true if blocklist has been added successfully
+export async function addUrlToBlocklist(url?: string) {
+	if (!url || !isValidUrl(url)) return false;
+
+	const blockedUrl = normalizeUrlKeyword(new URL(url).hostname);
+	if (!blockedUrl) return false;
+
+	const blocklist = await getBlocklist();
+	if (blocklist.some((item) => isUrlBlockedBy(item, url))) {
+		return true; // already blacklisted
+	}
+
+	return saveBlocklist([
+		...blocklist,
+		{ id: generateId(), type: "domain", blockedUrl },
+	]);
+}
+
+// removes every domain entry that blocks the given url
 export async function deleteUrlFromBlocklist(url?: string) {
 	if (!url) return false;
 
-	try {
-		const { blocklist } = (await getOneStorageItem("blocklist")) as {
-			blocklist: BlockList[];
-		};
-		const rules: BlockList[] = blocklist?.filter(
-			(item: BlockRule) => getHostname(item.blockedUrl) !== getHostname(url)
-		);
+	const blocklist = await getBlocklist();
+	return saveBlocklist(blocklist.filter((item) => !isUrlBlockedBy(item, url)));
+}
 
-		chrome.storage.sync.set({
-			blocklist: rules,
-		});
+export async function addGroupToBlocklist(groupName?: string) {
+	const trimmed = (groupName ?? "").trim();
+	if (!trimmed) return false;
 
-		return true;
-	} catch (error) {
-		// console.log(error);
-		return false;
+	const blocklist = await getBlocklist();
+	if (blocklist.some((item) => isGroupBlockedBy(item, normalizeGroupName(trimmed)))) {
+		return true; // already blacklisted
 	}
+
+	return saveBlocklist([
+		...blocklist,
+		{ id: generateId(), type: "group", groupName: trimmed },
+	]);
+}
+
+export async function deleteGroupFromBlocklist(groupName?: string) {
+	const name = normalizeGroupName(groupName);
+	if (!name) return false;
+
+	const blocklist = await getBlocklist();
+	return saveBlocklist(
+		blocklist.filter((item) => !isGroupBlockedBy(item, name))
+	);
 }
 
 export function restoreSingleTab(tab: chrome.tabs.Tab) {

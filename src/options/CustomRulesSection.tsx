@@ -1,19 +1,22 @@
 import { useContext, useEffect, useState } from "preact/hooks";
-import { Colors, CustomRule, customHint, getOneStorageItem } from "../const";
+import {
+	Colors,
+	CustomRule,
+	getCustomRuleSearchTerms,
+	getOneStorageItem,
+} from "../const";
 import { TrafficLightButton } from "../components/TrafficLightButton";
-import { generateId, isValidUrl } from "../helpers";
+import { generateId } from "../helpers";
 import { IconButton } from "../components/TrafficLightButton";
 import { ToastContext } from "../context/ToastContext";
+import { useI18n } from "../context/I18nContext";
+import { MessageKey } from "../i18n";
 
-export default function CustomModal({
-	isVisible = false,
-	toggleVisibility,
-}: // showToastNotification,
-{
-	isVisible: boolean;
-	toggleVisibility: () => void;
-	// showToastNotification: (message: string, color: "green" | "red") => void;
-}) {
+function inputValue(e: Event) {
+	return (e.currentTarget as HTMLInputElement | HTMLSelectElement).value;
+}
+
+export default function CustomRulesSection() {
 	const [url, setUrl] = useState("");
 	const [alias, setAlias] = useState("");
 	const [color, setColor] = useState<chrome.tabGroups.ColorEnum | "">(""); //random??
@@ -21,6 +24,7 @@ export default function CustomModal({
 	const [customRules, setCustomRules] = useState<CustomRule[]>([]);
 
 	const { showToastNotification } = useContext(ToastContext);
+	const { t } = useI18n();
 
 	useEffect(() => {
 		restoreCustomRules();
@@ -35,15 +39,18 @@ export default function CustomModal({
 
 	function addNewRule() {
 		const id = generateId();
+		const searchTerms = getCustomRuleSearchTerms(url);
 
-		if (!isValidUrl(url)) {
-			showToastNotification("Please enter a valid url.", "red");
+		if (!searchTerms.length) {
+			showToastNotification(t("toast_enter_keyword"), "red");
+		} else if (!alias.trim()) {
+			showToastNotification(t("toast_enter_group_name"), "red");
 		} else {
 			const newRule: CustomRule = {
 				id: id,
-				url: url,
-				alias: alias,
-				color: color, // "" | undefined = random
+				url: searchTerms.join(", "),
+				alias: alias.trim(),
+				color: color || undefined, // undefined = random
 			};
 
 			let newCustomRules = [...customRules, newRule];
@@ -56,14 +63,14 @@ export default function CustomModal({
 					function () {
 						setCustomRules(newCustomRules);
 						// Update status to let user know options were saved.
-						showToastNotification("New rule saved", "green");
+						showToastNotification(t("toast_rule_saved"), "green");
 						setUrl("");
 						setAlias("");
 						setColor("");
 					}
 				);
 			} catch (error) {
-				showToastNotification("Error saving item", "red");
+				showToastNotification(t("toast_error_saving"), "red");
 			}
 		}
 	}
@@ -78,11 +85,11 @@ export default function CustomModal({
 				},
 				function () {
 					setCustomRules(newArray);
-					showToastNotification("Custom rule deleted", "green");
+					showToastNotification(t("toast_rule_deleted"), "green");
 				}
 			);
 		} catch (error) {
-			showToastNotification("Storage error", "red");
+			showToastNotification(t("toast_storage_error"), "red");
 		}
 	}
 
@@ -90,72 +97,67 @@ export default function CustomModal({
 		id: string,
 		newUrl: string,
 		newAlias: string,
-		newColor: chrome.tabGroups.ColorEnum
+		newColor: chrome.tabGroups.ColorEnum | ""
 	) {
-		const restArray = customRules.filter((item) => item.id !== id); //all other except current
+		const searchTerms = getCustomRuleSearchTerms(newUrl);
+		if (!searchTerms.length) {
+			showToastNotification(t("toast_enter_keyword"), "red");
+			return;
+		}
+		if (!newAlias.trim()) {
+			showToastNotification(t("toast_enter_group_name"), "red");
+			return;
+		}
+
 		const editedRule: CustomRule = {
 			id: id,
-			url: newUrl,
-			alias: newAlias,
-			color: newColor,
+			url: searchTerms.join(", "),
+			alias: newAlias.trim(),
+			color: newColor || undefined, // undefined = random
 		};
-
-		restArray.push(editedRule);
+		const newRules = customRules.map((item) =>
+			item.id === id ? editedRule : item
+		);
 
 		try {
 			chrome.storage.sync.set(
 				{
-					customrules: restArray,
+					customrules: newRules,
 				},
 				function () {
-					showToastNotification("Custom Rule updated.", "green");
-					setCustomRules(restArray);
+					showToastNotification(t("toast_rule_updated"), "green");
+					setCustomRules(newRules);
 				}
 			);
 		} catch (error) {
-			showToastNotification("Error editing item", "red");
+			showToastNotification(t("toast_error_editing"), "red");
 		}
 	}
 
-	//TODO: typesafe events
-	function onUrlChange(e) {
-		// if (e.target.value) {
-		setUrl(e.target.value);
-		// }
+	function onUrlChange(e: Event) {
+		setUrl(inputValue(e));
 	}
-	function onAliasChange(e) {
-		// if (e.target.value) {
-		setAlias(e.target.value);
-		// }
+	function onAliasChange(e: Event) {
+		setAlias(inputValue(e));
 	}
 
-	function handleColor(e) {
-		// if (e.target.value) {
-		setColor(e.target.value);
-		// }
+	function handleColor(e: Event) {
+		setColor(inputValue(e) as chrome.tabGroups.ColorEnum | "");
 	}
 
 	return (
-		<div class="modal" style={{ display: isVisible ? "block" : "none" }}>
-			{/* <!-- Modal content --> */}
-			<div class="modal-content">
+		<section id="customrules" class="settings-section">
+			<div>
 				<div className="headercontainer">
 					<div className="pophead">
-						<div class="title">Custom Tab Grouping Rules</div>
-
-						<TrafficLightButton
-							icon="/icons/cancel.svg"
-							color="#fe5f58"
-							onClick={toggleVisibility}
-							tooltip="Close"
-						/>
+						<div class="title">{t("custom_title")}</div>
 					</div>
 					<div id="ruleinputcontainer">
 						<div class="inputblock" style="flex: 1">
-							<label for="groupsite">URL</label>
+							<label for="groupsite">{t("custom_url_label")}</label>
 							<input
 								type="text"
-								placeholder="https://facebook.com"
+								placeholder="github, youtube, docs.example.com"
 								name="groupsite"
 								id="customUrl"
 								value={url}
@@ -167,7 +169,7 @@ export default function CustomModal({
 						</div>
 
 						<div class="inputblock">
-							<label for="groupalias">Short Name or Alias</label>
+							<label for="groupalias">{t("custom_alias_label")}</label>
 							<input
 								type="text"
 								id="customAlias"
@@ -179,16 +181,16 @@ export default function CustomModal({
 						</div>
 
 						<div class="inputblock" style="margin-left: 5px">
-							<label for="groupcolor">Group Color</label>
+							<label for="groupcolor">{t("custom_color_label")}</label>
 							<select
 								id="colors"
 								name="groupcolor"
 								value={color}
 								onChange={handleColor}>
-								<option value="">Random</option>
+								<option value="">{t("common_random")}</option>
 								{Object.entries(Colors).map(([k, v]) => (
 									<option value={k} style={{ backgroundColor: v }}>
-										{k}
+										{t(`color_${k}` as MessageKey)}
 									</option>
 								))}
 							</select>
@@ -196,14 +198,14 @@ export default function CustomModal({
 
 						<div class="inputblock">
 							<button onClick={addNewRule} id="addbutton">
-								Add
+								{t("common_add")}
 							</button>
 						</div>
 					</div>
-					<p>{customHint}</p>
+					<p>{t("custom_hint")}</p>
 				</div>
 				<div>
-					<h3>Modify Existing Rules</h3>
+					<h3>{t("custom_existing")}</h3>
 					<div id="rulescontainer">
 						{customRules?.length ? (
 							customRules.map((rule, index) => (
@@ -216,14 +218,12 @@ export default function CustomModal({
 								/>
 							))
 						) : (
-							<p>
-								No Custom rules yet. Create a rule for a specific site above.
-							</p>
+							<p>{t("custom_empty")}</p>
 						)}
 					</div>
 				</div>
 			</div>
-		</div>
+		</section>
 	);
 }
 
@@ -239,7 +239,7 @@ function CustomRuleCard({
 		id: string,
 		newUrl: string,
 		newAlias: string,
-		newColor: chrome.tabGroups.ColorEnum
+		newColor: chrome.tabGroups.ColorEnum | ""
 	) => void;
 	deleteRule: (id: string) => void;
 }) {
@@ -252,29 +252,26 @@ function CustomRuleCard({
 	const [showEdit, setShowEdit] = useState(false);
 
 	const { showToastNotification } = useContext(ToastContext);
+	const { t } = useI18n();
 
-	//TODO: type safe events
-
-	function onUrlChange(e) {
-		// if (e.target.value) {
-		setUrl(e.target.value);
-		// }
+	function onUrlChange(e: Event) {
+		setUrl(inputValue(e));
 	}
-	function onAliasChange(e) {
-		// if (e.target.value) {
-		setAlias(e.target.value);
-		// }
+	function onAliasChange(e: Event) {
+		setAlias(inputValue(e));
 	}
 
-	function handleColor(e) {
-		// if (e.target.value) {
-		setColor(e.target.value);
-		// }
+	function handleColor(e: Event) {
+		setColor(inputValue(e) as chrome.tabGroups.ColorEnum | "");
 	}
 
 	function confirmEdit() {
-		if (!isValidUrl(url)) {
-			showToastNotification("Please enter a valid url.", "red");
+		if (!getCustomRuleSearchTerms(url).length) {
+			showToastNotification(t("toast_enter_keyword"), "red");
+			return;
+		}
+		if (!alias.trim()) {
+			showToastNotification(t("toast_enter_group_name"), "red");
 			return;
 		}
 		// if (!alias.length) {
@@ -324,10 +321,10 @@ function CustomRuleCard({
 
 				{showEdit && (
 					<select id="colormodifier" value={color} onChange={handleColor}>
-						<option value="">Random</option>
+						<option value="">{t("common_random")}</option>
 						{Object.entries(Colors).map(([k, v]) => (
 							<option value={k} style={{ backgroundColor: v }}>
-								{k}
+								{t(`color_${k}` as MessageKey)}
 							</option>
 						))}
 					</select>
@@ -337,14 +334,14 @@ function CustomRuleCard({
 				{showEdit ? (
 					<span className="trafficSpan">
 						<IconButton
-							tooltip="Save"
+							tooltip={t("common_save")}
 							icon="/icons/save-floppy-disk.svg"
 							onClick={confirmEdit}
 							color="#28c840"
-							title=" Save"
+							title={" " + t("common_save")}
 						/>
 						<TrafficLightButton
-							tooltip="Cancel"
+							tooltip={t("common_cancel")}
 							icon="/icons/cancel.svg"
 							onClick={cancelEdit}
 							color="orange"
@@ -356,13 +353,13 @@ function CustomRuleCard({
 							icon="/icons/edit-pencil.svg"
 							color="#febc30"
 							onClick={() => setShowEdit(true)}
-							tooltip="Edit"
+							tooltip={t("common_edit")}
 						/>
 						<TrafficLightButton
 							icon="/icons/trash.svg"
 							color="#fe5f58"
 							onClick={() => deleteRule(rule.id)}
-							tooltip="Delete this rule"
+							tooltip={t("common_delete_rule")}
 						/>
 					</span>
 				)}

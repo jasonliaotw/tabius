@@ -15,6 +15,19 @@ option {
 	box-sizing: border-box;
 }
 
+/* Dropdown lists: the selects use white text on a transparent background, but
+   the native popup list is white, so unselected options were white-on-white.
+   Give every option an explicit dark background + light text. */
+select option {
+	background-color: #242424;
+	color: #fff;
+}
+/* color pickers: options are painted in the group color, use dark text */
+#colors option[style],
+#colormodifier option[style] {
+	color: #000;
+}
+
 .headerbutton {
 	all: unset;
 	cursor: pointer;
@@ -23,28 +36,61 @@ option {
 	margin-top: 10px;
 }
 
+html {
+	scroll-behavior: smooth;
+}
+
 #settingsmain {
-	width: 45vw;
-	/* height: 570px; */
-	margin: 0 auto;
-	/* border: 15px #00d282 solid; */
+	/* wide enough for the custom rule input row */
+	width: 52rem;
+	max-width: calc(100vw - 100px);
+	margin: 0 auto 5vh auto;
 	font-size: medium;
 	padding: 40px;
 	background-color: #0d0d0d;
 	border-radius: 5px;
 }
-@media all and (max-width: 1367px) {
-	#settingsmain {
-		width: 60vw;
-		font-size: medium;
-	}
-}
-#settingsmain > p {
+#settingsmain p {
 	font-size: 14px;
 	color: #a5a4a4;
 	margin-top: 5px;
 }
 
+/* in-page navigation between the sections */
+.sectionnav {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 20px;
+}
+.sectionnav > a {
+	color: #c2c3c7;
+	text-decoration: none;
+	background-color: #242424;
+	padding: 6px 14px;
+	border-radius: 5px;
+}
+.sectionnav > a:hover {
+	background-color: #35363a;
+	color: #fff;
+}
+.sectiontitle {
+	margin: 10px 0 15px 0;
+	font-weight: 500;
+}
+#general,
+.settings-section {
+	scroll-margin-top: 20px;
+}
+.settings-section {
+	margin-top: 40px;
+	background-color: #121212;
+	color: #c2c3c7;
+	padding: 10px;
+	border-radius: 5px;
+}
+.savehint {
+	text-align: center;
+}
 #settingsheader {
 	display: flex;
 	flex-direction: row;
@@ -60,8 +106,8 @@ option {
 	border-radius: 2px;
 	font-size: medium;
 	padding: 5px;
-	background-color: inherit;
-	color: inherit;
+	background-color: #0d0d0d;
+	color: #fff;
 }
 #maximum {
 	border-radius: 3px;
@@ -125,29 +171,6 @@ input[type="checkbox"] {
 	font-weight: 500;
 }
 
-#myBtn,
-#blockBtn {
-	border: none;
-	padding: 10px;
-	font-size: 20px;
-	cursor: pointer;
-	border-radius: 2px;
-	margin-top: 10px;
-}
-
-#myBtn {
-	width: 30%;
-	background-color: #e5e5e5;
-	/* border-bottom: 2px solid #d1c4e9; */
-}
-
-#blockBtn {
-	width: 30%;
-	margin-left: 5%;
-	background-color: #e5e5e5;
-	/* border-bottom: 2px solid #ffccbc; */
-}
-
 #save {
 	font-size: 20px;
 	cursor: pointer;
@@ -169,39 +192,7 @@ input[type="checkbox"] {
 	font-size: 18px;
 }
 
-/* modal related */
-
-.modal {
-	display: none; /* Hidden by default */
-	position: fixed; /* Stay in place */
-	z-index: 1; /* Sit on top */
-	/* padding-top: 10vh; Location of the box */
-	left: 0;
-	top: 0;
-	width: 100%; /* Full width */
-	height: 100%; /* Full height */
-	overflow: scroll; /* Enable scroll if needed */
-	background-color: rgb(0, 0, 0); /* Fallback color */
-	background-color: rgba(0, 0, 0, 0.8); /* Black w/ opacity */
-}
-
-/* Modal Content */
-.modal-content {
-	background-color: #121212;
-	color: #c2c3c7;
-	margin: auto;
-	padding: 10px;
-	width: 50rem;
-}
-
-.block-modal-content {
-	background-color: #121212;
-	margin: auto;
-	color: #c2c3c7;
-	padding: 10px;
-	width: 50rem;
-	/* overflow: scroll; */
-}
+/* custom rules / blacklist sections */
 
 #ruleinputcontainer,
 #ruleheader {
@@ -257,8 +248,8 @@ input[type="checkbox"] {
 	font-size: medium;
 	background-color: transparent;
 	border: unset;
-	/* border-radius: 2px; */
-	/* color: #fff; */
+	/* sits on the light rule card */
+	color: #000;
 }
 
 #colors {
@@ -331,7 +322,7 @@ input[type="checkbox"] {
 	font-size: medium;
 }
 
-/* modal styles end  */
+/* section styles end */
 
 .headercontainer {
 	display: flex;

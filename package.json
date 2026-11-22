@@ -1,6 +1,6 @@
 {
 	"name": "chrome-extension-preact-vite-manifest-3",
-	"version": "1.0.0",
+	"version": "2.0.6",
 	"description": "A chrome extension template with Preact",
 	"scripts": {
 		"build": "vite build",

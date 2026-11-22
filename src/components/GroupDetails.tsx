@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { truncateText } from "./TabgroupCard";
 import { TrafficLightButton } from "./TrafficLightButton";
+import { useI18n } from "../context/I18nContext";
 
 type GroupDetailsProps = {
 	id: number;
@@ -76,6 +77,7 @@ function TabCard({
 	tabEjectHandler,
 	closeTabHandler,
 }: TabCardProps) {
+	const { t } = useI18n();
 	return (
 		<div className="tabcard">
 			<div className="tabdetails">
@@ -101,13 +103,13 @@ function TabCard({
 					onClick={() => tabEjectHandler(id)}
 					icon="/icons/eject.svg"
 					color="#ffa300"
-					tooltip="Eject this tab from the group"
+					tooltip={t("details_eject")}
 				/>
 				<TrafficLightButton
 					onClick={() => closeTabHandler(id)}
 					icon="/icons/cancel.svg"
 					color="#fe5f58"
-					tooltip="Close this tab"
+					tooltip={t("details_close")}
 				/>
 			</div>
 		</div>

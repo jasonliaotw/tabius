@@ -3,6 +3,7 @@ import { Colors, SavedGroup } from "../const";
 import { TrafficLightButton } from "./TrafficLightButton";
 import { truncateText } from "./TabgroupCard";
 import { restoreSingleTab } from "../helpers";
+import { useI18n } from "../context/I18nContext";
 
 type TabgroupCardProps = {
 	group: SavedGroup;
@@ -22,12 +23,13 @@ export default function SavedGroupCard({
 TabgroupCardProps) {
 	// const [count, setCount] = useState(group.count);
 	const [groupDetailIsOpen, setGroupDetailOpen] = useState(false);
+	const { t } = useI18n();
 
 	useEffect(() => {
 		// fetchTabGroupCount();
 	}, []);
 
-	function toggleGroupDetails(e: MouseEvent) {
+	function toggleGroupDetails() {
 		setGroupDetailOpen((prev) => !prev);
 	}
 
@@ -99,7 +101,7 @@ TabgroupCardProps) {
 			}}>
 			<div
 				className="tabgroupCard"
-				title="Click to open"
+				title={t("card_click_to_open")}
 				onClick={toggleGroupDetails}>
 				<div className="tabgroupData">
 					<span className="tabgroupName">{truncateText(group.title)}</span>
@@ -114,13 +116,13 @@ TabgroupCardProps) {
 						onClick={restoreGroup}
 						icon="/icons/open-in-browser.svg"
 						color="#a8f57d"
-						tooltip="Restore this tab group"
+						tooltip={t("saved_restore")}
 					/>
 					<TrafficLightButton
 						onClick={deleteGroup}
 						icon="/icons/trash.svg"
 						color="#fe5f58"
-						tooltip="Delete this saved group"
+						tooltip={t("saved_delete")}
 					/>
 				</div>
 			</div>
@@ -130,7 +132,7 @@ TabgroupCardProps) {
 					className="addButton"
 					onClick={() => addToSavedGroupHandler(group.id)}>
 					{" "}
-					+ Add current tab to this group
+					{t("saved_add_current")}
 				</div>
 			)}
 
@@ -161,12 +163,13 @@ TabgroupCardProps) {
 									onClick={() => restoreSingleTab(tab)}
 									icon="/icons/open-in-browser.svg"
 									color="#a8f57d"
-									tooltip="Open this tab separately"
+									tooltip={t("saved_open_separately")}
 								/>
 								<TrafficLightButton
 									onClick={() => deleteTabFromSavedGroup(tab.id)}
 									icon="/icons/trash.svg"
 									color="#fe5f58"
+									tooltip={t("saved_delete_tab")}
 								/>
 							</div>
 						</div>

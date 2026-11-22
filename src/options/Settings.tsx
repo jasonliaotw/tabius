@@ -1,15 +1,23 @@
 import { render } from "preact";
 import { useContext, useEffect, useState } from "preact/hooks";
 
-import CustomModal from "./CustomModal";
+import CustomRulesSection from "./CustomRulesSection";
 import {
 	GROUP_BY,
 	GROUP_NAMING,
 	getMultipleStorageItems,
 	tabiusAscii,
 } from "../const";
-import BlockModal from "./BlockModal";
+import BlacklistSection from "./BlacklistSection";
 import ToastContextProvider, { ToastContext } from "../context/ToastContext";
+import I18nProvider, { useI18n } from "../context/I18nContext";
+import {
+	isLanguageSetting,
+	LANGUAGE_NAMES,
+	LANGUAGE_SETTINGS,
+	resolveLanguage,
+	translate,
+} from "../i18n";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -29,21 +37,21 @@ const Settings = () => {
 	//number
 	const [maximum, setMaximum] = useState(0);
 
-	//toggling modals
-
-	const [crIsVisible, setCrVisible] = useState(false);
-	const [brIsVisible, setBrVisible] = useState(false);
-
 	//toast notification
 
 	const { showToastNotification } = useContext(ToastContext);
+	const { t, setting: languageSetting } = useI18n();
 
-	function toggleCustomModal() {
-		setCrVisible((prev) => !prev);
-	}
-
-	function toggleBlockModal() {
-		setBrVisible((prev) => !prev);
+	// the language is saved right away so the whole UI switches immediately
+	function handleLanguage(e: Event) {
+		const value = (e.currentTarget as HTMLSelectElement).value;
+		if (!isLanguageSetting(value)) return;
+		chrome.storage.sync.set({ language: value }, () => {
+			showToastNotification(
+				translate(resolveLanguage(value), "toast_language_saved"),
+				"green"
+			);
+		});
 	}
 
 	useEffect(() => {
@@ -93,11 +101,11 @@ const Settings = () => {
 				},
 				function () {
 					// Update status to let user know options were saved.
-					showToastNotification("Settings Saved", "green");
+					showToastNotification(t("toast_settings_saved"), "green");
 				}
 			);
 		} catch (error) {
-			showToastNotification("Error saving item", "red");
+			showToastNotification(t("toast_error_saving"), "red");
 		}
 	}
 
@@ -141,7 +149,7 @@ const Settings = () => {
 						<img src="/icon.png" width="128px" height="128px" />
 						<div id="textcontainer">
 							<div id="title">Tabius 2</div>
-							<div id="subtitle">Automatic Tab Grouping Assistant</div>
+							<div id="subtitle">{t("settings_subtitle")}</div>
 						</div>
 					</div>
 					<div class="promocontainer">
@@ -149,34 +157,55 @@ const Settings = () => {
 							class="headerbutton"
 							href="https://www.buymeacoffee.com/faisalbin"
 							target="_blank">
-							&#9749; Buy me a coffee
+							{t("settings_coffee")}
 						</a>
 						<a
 							class="headerbutton"
 							href="https://faisalbin.com"
 							target="_blank">
-							&#127760; Visit Website
+							{t("settings_website")}
 						</a>
 						<a
 							class="headerbutton"
 							href="https://chrome.google.com/webstore/detail/tabius-tab-grouping-assis/enceimdjnaccoeikjobaeicfodlfnijp"
 							target="_blank">
-							&#128172; Rate/Review
+							{t("settings_rate")}
 						</a>
 					</div>
 				</div>
+				<nav class="sectionnav">
+					<a href="#general">{t("settings_section_general")}</a>
+					<a href="#customrules">{t("custom_title")}</a>
+					<a href="#blacklist">{t("block_title")}</a>
+				</nav>
+
+				<section id="general">
+				<h2 class="sectiontitle">{t("settings_section_general")}</h2>
 				<div class="oneoptioncontainer">
-					<div id="langtext">Group By Option</div>
-					<select id="groupby" value={groupby} onChange={handleGroupBy}>
-						<option value="sot">same opening tab</option>
-						<option value="sd">same domain</option>
+					<div id="langtext">{t("settings_language")}</div>
+					<select
+						id="uilanguage"
+						value={languageSetting}
+						onChange={handleLanguage}>
+						{LANGUAGE_SETTINGS.map((value) => (
+							<option value={value}>
+								{value === "auto"
+									? t("settings_language_auto")
+									: LANGUAGE_NAMES[value]}
+							</option>
+						))}
 					</select>
 				</div>
-				<p>
-					Hint: by default tabs will be grouped together with the tab that
-					opened it. However you can restrict this behavior to only group them
-					when the new tab is from the same domain.
-				</p>
+				<p>{t("settings_language_hint")}</p>
+
+				<div class="oneoptioncontainer">
+					<div id="langtext">{t("settings_groupby")}</div>
+					<select id="groupby" value={groupby} onChange={handleGroupBy}>
+						<option value="sot">{t("settings_groupby_sot")}</option>
+						<option value="sd">{t("settings_groupby_sd")}</option>
+					</select>
+				</div>
+				<p>{t("settings_groupby_hint")}</p>
 
 				<div id="alttext">
 					<label>
@@ -186,33 +215,25 @@ const Settings = () => {
 							checked={regardless}
 							onClick={toggleRegardlessValue}
 						/>
-						Combine tabs inside existing groups regardless of domain
+						{t("settings_regardless")}
 					</label>
 				</div>
-				<p>
-					Hint: if you want to put new tabs opened from an existing group to
-					reside in the group regardless of the "group by same domain" policy.
-					Only applicable when "same domain" has been chosen as the group by
-					option.
-				</p>
+				<p>{t("settings_regardless_hint")}</p>
 
 				<div class="oneoptioncontainer">
-					<div id="langtext">Group Naming Convention</div>
+					<div id="langtext">{t("settings_naming")}</div>
 					<select id="naming" value={naming} onChange={handleNaming}>
-						<option value="dom">domain</option>
-						<option value="subdom">subdomain.domain</option>
-						<option value="subdomtld">subdomain.domain.tld</option>
-						<option value="title">Group opener's title</option>
-						<option value="nameless">nameless (no name)</option>
+						<option value="dom">{t("naming_dom")}</option>
+						<option value="subdom">{t("naming_subdom")}</option>
+						<option value="subdomtld">{t("naming_subdomtld")}</option>
+						<option value="title">{t("naming_title")}</option>
+						<option value="nameless">{t("naming_nameless")}</option>
 					</select>
 				</div>
-				<p>
-					Hint: by default the group will be named after domain:
-					dev.facebook.com -&gt; facebook.
-				</p>
+				<p>{t("settings_naming_hint")}</p>
 
 				<div class="oneoptioncontainer">
-					<div id="langtext">Maximum number of tabs per group</div>
+					<div id="langtext">{t("settings_maximum")}</div>
 					<input
 						id="maximum"
 						type="number"
@@ -223,9 +244,9 @@ const Settings = () => {
 					/>
 				</div>
 				<p>
-					0 (default) = no restrictions ~ unlimited tabs.
-					<b>1 = Tabius has no effects</b> (not applicable). 2 - 999 = maximum
-					number of tabs.
+					{t("settings_maximum_hint_1")}{" "}
+					<b>{t("settings_maximum_hint_bold")}</b>{" "}
+					{t("settings_maximum_hint_2")}
 				</p>
 				<div id="popuptext">
 					<label>
@@ -235,13 +256,10 @@ const Settings = () => {
 							id="lonely"
 							checked={lonely}
 						/>
-						Remove group when there is only 1 tab left
+						{t("settings_lonely")}
 					</label>
 				</div>
-				<p>
-					Hint: If the number of tab in a group becomes 1, this will ungroup the
-					remaining 'lonely' tab.
-				</p>
+				<p>{t("settings_lonely_hint")}</p>
 
 				<div id="popuptext">
 					<label>
@@ -251,46 +269,34 @@ const Settings = () => {
 							id="autocollapse"
 							checked={autocollapse}
 						/>
-						Auto collapse inactive tab groups
+						{t("settings_autocollapse")}
 					</label>
 				</div>
-				<p>
-					Hint: if the current tab is not part of a tab group, the extension
-					will collapse all other tab groups automatically.
-				</p>
+				<p>{t("settings_autocollapse_hint")}</p>
 
-				<div style="display: flex">
-					<span style="flex: 1"></span>
-					<button id="myBtn" onClick={toggleCustomModal}>
-						Custom Rules
-					</button>
-					<button id="blockBtn" onClick={toggleBlockModal}>
-						Blacklist
-					</button>
-					<span style="flex: 1"></span>
-				</div>
-				{/* <p>Hint: Blocklist will always get precendence over Custom Rules.</p> */}
 				<div style="display: flex">
 					<div style="flex: 1"></div>
 					<button id="save" onClick={saveSettings}>
-						Save Settings
+						{t("settings_save")}
 					</button>
 					<div style="flex: 1"></div>
 				</div>
+				<p class="savehint">{t("settings_save_hint")}</p>
+				</section>
+
+				<CustomRulesSection />
+				<BlacklistSection />
 			</div>
-			<CustomModal
-				isVisible={crIsVisible}
-				toggleVisibility={toggleCustomModal}
-			/>
-			<BlockModal isVisible={brIsVisible} toggleVisibility={toggleBlockModal} />
 		</div>
 	);
 };
 
 // context needs to be set one level above the consuming components to work !!! IMPORTANT
 render(
-	<ToastContextProvider>
-		<Settings />
-	</ToastContextProvider>,
+	<I18nProvider>
+		<ToastContextProvider>
+			<Settings />
+		</ToastContextProvider>
+	</I18nProvider>,
 	document.getElementById("settings")!
 );

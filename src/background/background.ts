@@ -1,9 +1,188 @@
 // Background Script Code
 
-import { GROUP_NAMING, getOneStorageItem } from "../const";
-import { isTheURLNative } from "../helpers";
+import {
+	CustomRule,
+	findCustomRule,
+	getHostname,
+	GROUP_NAMING,
+	getOneStorageItem,
+	normalizeGroupName,
+} from "../const";
+import {
+	isGroupBlocked,
+	isGroupNameBlocked,
+	isTheURLNative,
+	withBlock,
+} from "../helpers";
+import { registerContextMenus } from "./contextMenu";
 
-chrome.tabs.onCreated.addListener(async (tab) => await createTab(tab));
+registerContextMenus();
+
+const TAB_DRAG_ERROR =
+	"Tabs cannot be edited right now (user may be dragging a tab).";
+const MAX_RETRIES = 10;
+
+function isTabDragError(error: unknown) {
+	return String(error).includes(TAB_DRAG_ERROR);
+}
+
+// All grouping work runs through one serial queue. This prevents two tabs that
+// finish loading at the same time from each creating their own group with the
+// same title, and guarantees that onCreated (opener based grouping) is handled
+// before the onUpdated (custom rule) pass for the same tab.
+let taskQueue: Promise<void> = Promise.resolve();
+function enqueue(task: () => Promise<void>) {
+	taskQueue = taskQueue.then(task).catch(() => {});
+}
+
+function retryLater(task: () => Promise<void>, attempt: number, delay = 100) {
+	if (attempt >= MAX_RETRIES) return;
+	setTimeout(() => enqueue(task), delay);
+}
+
+chrome.tabs.onCreated.addListener((tab) => enqueue(() => createTab(tab)));
+
+// Tabs opened *by a web page* (link click, middle click, "open link in new tab",
+// window.open). Chrome also sets openerTabId on tabs opened by external apps
+// (LINE, Slack, Outlook...) - it uses whatever tab happened to be active - so
+// openerTabId alone can't tell a real opener apart. This event only fires for
+// tabs a page opened.
+const NAV_TARGET_WAIT_MS = 500;
+const pageOpenedTabs = new Set<number>();
+const pageOpenedWaiters = new Map<number, () => void>();
+
+chrome.webNavigation.onCreatedNavigationTarget.addListener(({ tabId }) => {
+	pageOpenedTabs.add(tabId);
+	pageOpenedWaiters.get(tabId)?.();
+});
+chrome.tabs.onRemoved.addListener((tabId) => pageOpenedTabs.delete(tabId));
+
+// resolves true if the tab was opened by a web page; the event can arrive a
+// little after tabs.onCreated, so wait briefly for it
+function wasOpenedByPage(tabId: number): Promise<boolean> {
+	if (pageOpenedTabs.delete(tabId)) return Promise.resolve(true);
+	return new Promise((resolve) => {
+		const finish = (value: boolean) => {
+			clearTimeout(timer);
+			pageOpenedWaiters.delete(tabId);
+			pageOpenedTabs.delete(tabId);
+			resolve(value);
+		};
+		const timer = setTimeout(() => finish(false), NAV_TARGET_WAIT_MS);
+		pageOpenedWaiters.set(tabId, () => finish(true));
+	});
+}
+
+// Tabs whose URL changed since their last "complete" event. Only these may be
+// moved out of an existing group by a custom rule, so a plain reload keeps a
+// tab where the user put it.
+const navigatedTabs = new Set<number>();
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+	if (changeInfo.url) {
+		navigatedTabs.add(tabId);
+	}
+	if (changeInfo.status !== "complete") {
+		return;
+	}
+	const navigated = navigatedTabs.delete(tabId);
+	enqueue(() => applyRulesToLoadedTab(tabId, navigated));
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => navigatedTabs.delete(tabId));
+
+async function applyRulesToLoadedTab(
+	tabId: number,
+	navigated: boolean,
+	attempt = 0
+) {
+	let tab: chrome.tabs.Tab;
+	try {
+		// re-fetch: the tab may have been grouped/closed while waiting in the queue
+		tab = await chrome.tabs.get(tabId);
+	} catch {
+		return; // tab was closed
+	}
+
+	if (!tab.url || isTheURLNative(tab.url) || tab.pinned) {
+		// grouping a pinned tab would unpin it
+		return;
+	}
+
+	try {
+		if (await withBlock(tab.url)) {
+			if (tab.groupId !== -1) {
+				await chrome.tabs.ungroup(tabId);
+			}
+			return;
+		}
+
+		// A tab that is already grouped is only moved by a custom rule when it
+		// navigated to a new URL (not on reload), and never out of a
+		// blacklisted group.
+		if (tab.groupId !== -1) {
+			if (!navigated || (await isGroupBlocked(tab.groupId))) {
+				return;
+			}
+		}
+
+		// Custom rules are explicit, so they also apply to blacklisted groups:
+		// a blacklisted group only stops tabs from *following their opener* in.
+		const rule = await withCustomRule(tab.url);
+		if (!rule) {
+			return;
+		}
+
+		const matchingGroup = await findGroupByTitle(tab.windowId, rule.alias);
+
+		if (matchingGroup) {
+			if (tab.groupId === matchingGroup.id) {
+				return; // already where it belongs
+			}
+			if (await isGroupFull(matchingGroup.id)) {
+				return;
+			}
+			await chrome.tabs.group({ tabIds: tabId, groupId: matchingGroup.id });
+		} else {
+			const groupId = await chrome.tabs.group({
+				tabIds: tabId,
+				createProperties: { windowId: tab.windowId },
+			});
+			const updateProperties: chrome.tabGroups.UpdateProperties = {
+				title: rule.alias,
+			};
+			if (rule.color) {
+				updateProperties.color = rule.color;
+			}
+			await chrome.tabGroups.update(groupId, updateProperties);
+		}
+	} catch (error) {
+		if (isTabDragError(error)) {
+			retryLater(
+				() => applyRulesToLoadedTab(tabId, navigated, attempt + 1),
+				attempt
+			);
+		}
+	}
+}
+
+// the existing group in this window with the given title (trimmed, case-insensitive)
+async function findGroupByTitle(windowId: number, title?: string) {
+	const wanted = normalizeGroupName(title);
+	if (!wanted) return undefined;
+	const groups = await chrome.tabGroups.query({ windowId });
+	return groups.find((group) => normalizeGroupName(group.title) === wanted);
+}
+
+// true when the user's "maximum tabs per group" limit has been reached
+async function isGroupFull(groupId: number) {
+	const maximum = await getOneStorageItem("maximum");
+	const limit = parseInt(maximum?.maximum);
+	if (!(limit > 1)) {
+		return false;
+	}
+	return (await getSingleGroupNumberOfTab(groupId)) >= limit;
+}
 
 //UnGroup an existing tab from its group
 function ungroupOneTab(tabId: chrome.tabs.Tab["id"]) {
@@ -17,7 +196,7 @@ function ungroupOneTab(tabId: chrome.tabs.Tab["id"]) {
 	});
 }
 
-async function createTab(newtab: chrome.tabs.Tab) {
+async function createTab(newtab: chrome.tabs.Tab, attempt = 0) {
 	// console.log("new tab created");
 
 	if (!newtab.id) {
@@ -26,7 +205,12 @@ async function createTab(newtab: chrome.tabs.Tab) {
 
 	//fetching the new tab info again
 	// workaround for tab sometimes not having pending or url for some some seconds.
-	const tab = await chrome.tabs.get(newtab.id);
+	let tab: chrome.tabs.Tab;
+	try {
+		tab = await chrome.tabs.get(newtab.id);
+	} catch {
+		return; // tab was closed before we got to it
+	}
 
 	//TODO: handle no openertab
 
@@ -44,13 +228,32 @@ async function createTab(newtab: chrome.tabs.Tab) {
 	// if(tab.id){options.tabIds}
 
 	//getting the original tab to see if it's a member of a group already, for some reason the groupId in tab was always set to -1
-	let openerTabInfo;
+	let openerTabInfo: chrome.tabs.Tab;
 	if (tab.openerTabId) {
-		openerTabInfo = await chrome.tabs.get(tab?.openerTabId);
+		try {
+			openerTabInfo = await chrome.tabs.get(tab.openerTabId);
+		} catch {
+			return; // opener tab was already closed
+		}
 		// console.log("opener tab info", getTabPromise);
 		if (openerTabInfo.pinned) return; //if the opener tab is pinned, we don't put the tabs in a group
 	} else {
-		// console.log(error);
+		// no opener at all: custom rules are handled by chrome.tabs.onUpdated
+		// as soon as the final URL is known.
+		return;
+	}
+
+	// new tab page, chrome:// pages, about:blank... are never grouped
+	const newTabUrl = tab.pendingUrl ?? tab.url;
+	if (!newTabUrl || isTheURLNative(newTabUrl)) {
+		return;
+	}
+
+	// Opened by an external app (or a bookmark): openerTabId is just the tab
+	// that was active. Don't group it with that tab - onUpdated applies the
+	// custom rules once the page has loaded.
+	if (!(await wasOpenedByPage(tab.id!))) {
+		return;
 	}
 
 	// checking if a blocking rule exists if yes stop running the function
@@ -62,6 +265,17 @@ async function createTab(newtab: chrome.tabs.Tab) {
 		try {
 			ungroupOneTab(tab.id);
 		} catch (error) {}
+		return;
+	}
+
+	// the opener is in a blacklisted tab group: keep the new tab out of it
+	// (chrome adds tabs opened from a grouped tab to that group by itself).
+	// If the new page matches a custom rule for that group, onUpdated puts it
+	// back in once it has loaded.
+	if (await isGroupBlocked(openerTabInfo.groupId)) {
+		try {
+			await chrome.tabs.ungroup(tab.id!);
+		} catch {}
 		return;
 	}
 
@@ -140,72 +354,80 @@ async function createTab(newtab: chrome.tabs.Tab) {
 				return;
 				// by default chrome will group the tab anyway if it was opened from a group, NOT ANYMORE
 			}
+			// For a new group, work out its name first so we never create a group
+			// whose name is blacklisted.
+			let naming: chrome.tabGroups.UpdateProperties | undefined;
+			if (newGroup) {
+				const resolved = await resolveGroupProperties(openerTabInfo);
+				naming = resolved.properties;
+				if (await isGroupNameBlocked(naming.title)) {
+					return;
+				}
+
+				// A custom rule names one shared group ("facebook.com, instagram.com"
+				// -> "Social"): if that group already exists in this window, join it
+				// instead of creating a second group with the same name.
+				if (resolved.fromCustomRule) {
+					const ruleGroup = await findGroupByTitle(
+						openerTabInfo.windowId,
+						naming.title
+					);
+					if (ruleGroup) {
+						if (!(await isGroupFull(ruleGroup.id))) {
+							await chrome.tabs.group({
+								tabIds: options.tabIds,
+								groupId: ruleGroup.id,
+							});
+						}
+						return;
+					}
+				}
+			}
+
 			//creating the group
 			const groupId = await chrome.tabs.group(options); //returns group id
-			// console.log(groupId);
 
-			// this should be executed if there is no group name already. DONE!!
-
-			//checking if a title exists already
+			//only name the group if it doesn't have a title already
 			const existingTabGroup = await chrome.tabGroups.get(groupId);
 
 			if (!existingTabGroup.title) {
-				// custom rule checking
-				// this should be based on original tab or new tab??
-				const crule = await withCustomRule(openerTabInfo?.url);
-
-				// console.log(crule, "custom rule clog");
-
-				let tabgroupName: string | undefined;
-				let color: chrome.tabGroups.ColorEnum | undefined;
-				let updateProperties: chrome.tabGroups.UpdateProperties;
-
-				//if custom tab rule exists for this domain, we asign the custom rule
-				if (crule) {
-					tabgroupName = crule.alias;
-					color = crule.color;
-				} else {
-					//we choose something dependingn on the domain rule
-					tabgroupName = await getDomain(
-						openerTabInfo?.pendingUrl ?? openerTabInfo?.url,
-						openerTabInfo
-					); //getting original tab's url and checking if it's pending
-				}
-
-				// console.log(tabgroupName);
-
-				if (color) {
-					updateProperties = {
-						title: tabgroupName,
-						color: color,
-					};
-				} else {
-					updateProperties = {
-						title: tabgroupName,
-					};
-				}
+				naming ??= (await resolveGroupProperties(openerTabInfo)).properties;
 				// updating the group after creation
 				try {
-					const _groupUpdated = await chrome.tabGroups.update(
-						groupId,
-						updateProperties
-					);
-					// console.log(_groupUpdated);
+					await chrome.tabGroups.update(groupId, naming);
 				} catch (error) {
-					// console.log(error, groupId, tabgroupName);
+					// console.log(error, groupId, naming);
 				}
 			}
 		}
 	} catch (error) {
-		// console.log("55", error);
-
-		if (
-			error ==
-			"Error: Tabs cannot be edited right now (user may be dragging a tab)."
-		) {
-			setTimeout(() => createTab(tab), 50);
+		if (isTabDragError(error)) {
+			retryLater(() => createTab(tab, attempt + 1), attempt, 50);
 		}
 	}
+}
+
+// Title (and color) for a group created from the opener tab: a matching custom
+// rule wins, otherwise the user's naming setting decides.
+async function resolveGroupProperties(openerTab: chrome.tabs.Tab): Promise<{
+	properties: chrome.tabGroups.UpdateProperties;
+	fromCustomRule: boolean;
+}> {
+	// custom rules are matched against the original (opener) tab
+	const crule = await withCustomRule(openerTab.url);
+	if (crule) {
+		return {
+			properties: crule.color
+				? { title: crule.alias, color: crule.color }
+				: { title: crule.alias },
+			fromCustomRule: true,
+		};
+	}
+	const title = await getDomain(
+		openerTab.pendingUrl ?? openerTab.url,
+		openerTab
+	); //getting original tab's url and checking if it's pending
+	return { properties: { title }, fromCustomRule: false };
 }
 
 async function getDomain(url?: string, openerTab?: chrome.tabs.Tab) {
@@ -258,18 +480,6 @@ function getOgSiteTitle(tab: chrome.tabs.Tab) {
 	return tab.title;
 }
 
-export function getHostname(url?: string) {
-	if (!url) return;
-	return new URL(url).hostname;
-}
-
-export type CustomRule = {
-	id: string;
-	url: string;
-	alias: string;
-	color: chrome.tabGroups.ColorEnum;
-};
-
 //return the rule if it exists for the said url
 async function withCustomRule(url?: string): Promise<CustomRule | false> {
 	if (!url) {
@@ -278,35 +488,7 @@ async function withCustomRule(url?: string): Promise<CustomRule | false> {
 
 	try {
 		const rules = await getOneStorageItem("customrules"); //chrome.storage.sync.get([K_CUSTOM_RULES]);
-		// console.log(rules?.customrules);
-		const rule = rules?.customrules?.find(
-			(item: CustomRule) => getHostname(item.url) === getHostname(url)
-		);
-
-		return rule;
-	} catch (error) {
-		// console.log(error);
-		return false;
-	}
-}
-
-export type BlockRule = {
-	id: string;
-	blockedUrl: string;
-};
-
-export async function withBlock(url?: string): Promise<boolean> {
-	if (!url) {
-		return false;
-	}
-	try {
-		const rules = await getOneStorageItem("blocklist"); //chrome.storage.sync.get([K_BLOCK_LIST]);
-		// console.log(rules?.blocklist);
-		const rule: boolean = rules?.blocklist?.find(
-			(item: BlockRule) => getHostname(item.blockedUrl) === getHostname(url)
-		);
-
-		return rule;
+		return findCustomRule(rules?.customrules, url) ?? false;
 	} catch (error) {
 		// console.log(error);
 		return false;
@@ -326,47 +508,32 @@ async function getSingleGroupNumberOfTab(tabGroupId?: number) {
 
 // group event related
 
-chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
-	// console.log("220", removeInfo);
+chrome.tabs.onRemoved.addListener(async (_tabId, removeInfo) => {
+	if (removeInfo.isWindowClosing) return; // the whole window is going away
 
 	const lonely = await getOneStorageItem("lonely"); //chrome.storage.sync.get([K_LONELY]);
 	if (!lonely?.lonely) return;
 
-	const queryInfo = {
-		windowId: -2,
-	};
-
-	const tabGroups = await chrome.tabGroups.query(queryInfo);
-	// console.log(tabGroups);
-
-	let isLonely = false;
-	// tabGroups.some(async (item) => await isGroupNotLonely(item.id));
-	// while (!isLonely) {
-	tabGroups.forEach(async (item) => {
-		isLonely = await isGroupNotLonely(item.id);
+	const tabGroups = await chrome.tabGroups.query({
+		windowId: removeInfo.windowId,
 	});
-	// }
+
+	await Promise.all(tabGroups.map((group) => ungroupIfLonely(group.id)));
 });
 
-async function isGroupNotLonely(tabGroupId: number) {
-	const queryInfo = {
-		groupId: tabGroupId,
-	};
-	const tabNumbers = await chrome.tabs.query(queryInfo);
-	// console.log("223", tabNumbers);
-	if (tabNumbers.length === 1) {
-		//ungrouping the tab:
-		const tabId = tabNumbers[0].id;
-		// const a =
-		if (tabId) {
-			await chrome.tabs.ungroup(tabId);
-		}
-		// console.log("lonely group unlonlied", a);
-
-		return true;
+// ungroups the tab if it is the only one left in its group
+async function ungroupIfLonely(tabGroupId: number) {
+	const tabs = await chrome.tabs.query({ groupId: tabGroupId });
+	if (tabs.length !== 1) {
+		return false;
 	}
-	// console.log("this group is not lonely", tabGroupId);
-	return false;
+	const tabId = tabs[0].id;
+	if (tabId) {
+		try {
+			await chrome.tabs.ungroup(tabId);
+		} catch {}
+	}
+	return true;
 }
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
@@ -377,19 +544,20 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 	if (!autocollapse?.autocollapse) return; //we don't have to do anything
 
 	//handle if current tab is already inside a tabgroup
-
-	const currentTab = await getCurrentTab();
+	let currentTab: chrome.tabs.Tab;
+	try {
+		currentTab = await chrome.tabs.get(activeInfo.tabId);
+	} catch {
+		return;
+	}
 
 	const currentTabGroup = currentTab.groupId;
-	//if currentTab.groupInfo === -1, the tab is not part of any tab groups
+	//if currentTab.groupId === -1, the tab is not part of any tab groups
 
-	// console.log(activeInfo, currentTab);
-
-	//find tabs in tabGroups
-	const queryInfo = {
-		windowId: -2,
-	};
-	const tabGroups = await chrome.tabGroups.query(queryInfo);
+	//find tab groups in the window where the tab was activated
+	const tabGroups = await chrome.tabGroups.query({
+		windowId: activeInfo.windowId,
+	});
 
 	// console.log("tabgroups", tabGroups);
 
@@ -406,10 +574,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 			// console.log("collapsing group", groupId, group.title);
 			await chrome.tabGroups.update(groupId, updateProperties);
 		} catch (error) {
-			if (
-				error ==
-				"Error: Tabs cannot be edited right now (user may be dragging a tab)."
-			) {
+			if (isTabDragError(error)) {
 				setTimeout(() => collapseTabGroup(groupId), 200); //closing this after 0.2 seconds
 			}
 		}
@@ -418,16 +583,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 });
 
 async function collapseTabGroup(groupId: number) {
-	// console.log("fallback close group", groupId);
-	const updateProperties = {
-		collapsed: true,
-	};
-	await chrome.tabGroups.update(groupId, updateProperties);
-}
-
-async function getCurrentTab() {
-	let queryOptions = { active: true, lastFocusedWindow: true };
-	// `tab` will either be a `tabs.Tab` instance or `undefined`.
-	let [tab] = await chrome.tabs.query(queryOptions);
-	return tab;
+	try {
+		await chrome.tabGroups.update(groupId, { collapsed: true });
+	} catch {}
 }
