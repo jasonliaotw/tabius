@@ -1,0 +1,79 @@
+name: Release
+
+# Push a version tag to build the extension and publish a GitHub Release:
+#   git tag v2.0.7
+#   git push origin v2.0.7
+# The tag must match "version" in public/manifest.json.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # create the release and upload the zip
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check tag matches manifest version
+        id: version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MANIFEST_VERSION="$(node -p "require('./public/manifest.json').version")"
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $MANIFEST_VERSION"
+            exit 1
+          fi
+          echo "version=$MANIFEST_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit -p .
+
+      - name: Build
+        run: npm run build
+
+      - name: Package
+        run: |
+          NAME="tabius-${{ steps.version.outputs.version }}"
+          rm -rf "$NAME"
+          cp -r dist "$NAME"
+          zip -r "$NAME.zip" "$NAME"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cat > notes.md <<'EOF'
+          ## Install / 安裝
+
+          1. Download `tabius-VERSION.zip` below and extract it to a folder you will keep.
+             下載下方的 `tabius-VERSION.zip`，解壓縮到一個固定的資料夾（之後不要刪除或搬移）。
+          2. Open `chrome://extensions` (Edge: `edge://extensions`, Brave: `brave://extensions`) and turn on **Developer mode**.
+             開啟擴充功能頁面，打開「開發人員模式」。
+          3. Click **Load unpacked** and select the extracted `tabius-VERSION` folder.
+             點「載入未封裝項目」，選擇解壓縮後的 `tabius-VERSION` 資料夾。
+
+          **Updating / 更新**：extract the new zip over the same folder, then click **Reload** on the Tabius card in the extensions page.
+          解壓縮新版 zip 覆蓋同一個資料夾，再到擴充功能頁面按 Tabius 的「重新載入」。
+
+          EOF
+          sed -i "s/VERSION/$VERSION/g" notes.md
+          gh release create "$GITHUB_REF_NAME" "tabius-$VERSION.zip" \
+            --title "Tabius $VERSION" \
+            --notes-file notes.md \
+            --generate-notes

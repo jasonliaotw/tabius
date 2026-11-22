@@ -11,6 +11,49 @@ Published at [Chrome Web Store](https://chrome.google.com/webstore/detail/tabius
 An Automatic Tab Grouping Extension for Your Browser.
 Tabius is a customizable and easy to use Tab Grouping assistant for Chrome.
 
+## Installation
+
+Works in Chrome, Edge, Brave and other Chromium-based browsers.
+
+1. Download `tabius-x.y.z.zip` from the [latest release](https://github.com/jasonliaotw/tabius/releases/latest).
+2. Extract it to a folder you will keep. The browser loads the extension from this folder, so don't delete or move it afterwards.
+3. Open the extensions page and turn on **Developer mode**:
+
+   | Browser | Address | Developer mode switch |
+   |---|---|---|
+   | Chrome | `chrome://extensions` | top right |
+   | Edge | `edge://extensions` | left sidebar |
+   | Brave | `brave://extensions` | top right |
+
+4. Click **Load unpacked** and select the extracted `tabius-x.y.z` folder (the one that contains `manifest.json`).
+
+**Updating**: extract the new zip over the same folder, then click **Reload** (↻) on the Tabius card in the extensions page. Unpacked extensions don't update automatically.
+
+If the original Tabius from the Chrome Web Store is also installed, disable it, otherwise both versions group your tabs at the same time.
+
+<details>
+<summary><b>安裝說明（中文）</b></summary>
+
+適用於 Chrome、Edge、Brave 等 Chromium 核心的瀏覽器。
+
+1. 從 [最新版 Release](https://github.com/jasonliaotw/tabius/releases/latest) 下載 `tabius-x.y.z.zip`。
+2. 解壓縮到一個固定的資料夾。瀏覽器會直接從這個資料夾載入擴充功能，之後請不要刪除或搬移。
+3. 開啟擴充功能頁面，打開「**開發人員模式**」：
+
+   | 瀏覽器 | 網址 | 開發人員模式開關 |
+   |---|---|---|
+   | Chrome | `chrome://extensions` | 右上角 |
+   | Edge | `edge://extensions` | 左側選單 |
+   | Brave | `brave://extensions` | 右上角 |
+
+4. 點「**載入未封裝項目**」，選擇解壓縮後的 `tabius-x.y.z` 資料夾（裡面有 `manifest.json` 的那一層）。
+
+**更新**：把新版 zip 解壓縮覆蓋到同一個資料夾，再到擴充功能頁面按 Tabius 卡片上的「**重新載入**」（↻）。未封裝的擴充功能不會自動更新。
+
+如果同時裝了商店版的 Tabius，請先停用，否則兩個版本會同時對分頁分組。
+
+</details>
+
 ![Tabius Features](/tabius-bento.png "Tabius Features")
 
 If you use tab grouping or couldn't use it due to lack of options, Tabius is a must have extension for you.
@@ -124,6 +167,20 @@ Then run `npm run build` to build the extension. The dist folder will contain al
 
 To install in your browser, go to your Chrome/Edge (or any Chromium based browsers) Extension page and click on `Load Unpacked` and then select the `dist` folder.
 The extension is good to go.
+
+### Publishing a release
+
+Releases are built and published automatically by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
+
+1. Bump the version in `public/manifest.json` (and `package.json`), commit and push.
+2. Push a matching tag:
+
+   ```
+   git tag v2.0.7
+   git push origin v2.0.7
+   ```
+
+The workflow type-checks and builds the extension, then creates a GitHub Release with `tabius-<version>.zip` attached. It stops if the tag doesn't match the manifest version.
 
 Please create an issue first before you make a pull request.
 
