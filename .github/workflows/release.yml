@@ -10,7 +10,8 @@ name: Release
 # Installation instructions live in README.md, not in the release.
 #
 # To refresh an existing release (notes and zip), run this workflow manually
-# from the Actions tab and enter the tag.
+# from the Actions tab on main and enter the tag: the zip is built from the
+# tag, the notes are taken from main's README.md.
 
 on:
   push:
@@ -35,6 +36,17 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
+
+      # Release notes come from the README of the commit this run started from
+      # (the tag on a push, the chosen branch on a manual run), so editing the
+      # summary on main and re-running updates an older release.
+      - name: Checkout README for release notes
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: notes-src
+          sparse-checkout: README.md
+          sparse-checkout-cone-mode: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -63,7 +75,7 @@ jobs:
               if (index($0, ver)) { found = 1; next }
             }
             found
-          ' README.md > notes.md
+          ' notes-src/README.md > notes.md
           if ! grep -q '[^[:space:]]' notes.md; then
             echo "::error::README.md has no '## ... v$VERSION' section with the change summary"
             exit 1

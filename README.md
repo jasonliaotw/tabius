@@ -206,7 +206,7 @@ Releases are built and published automatically by GitHub Actions ([`.github/work
 
 The workflow type-checks and builds the extension, then creates a GitHub Release with `tabius-<version>.zip` attached. It stops if the tag doesn't match the manifest version or the README has no section for that version.
 
-To refresh an existing release (for example after editing its README section), open **Actions → Release → Run workflow** and enter the tag (e.g. `v2.0.7`). The notes and the zip are replaced.
+To refresh an existing release (for example after editing its README section), open **Actions → Release → Run workflow** and enter the tag (e.g. `v2.0.7`). The zip is rebuilt from the tag and the notes are taken from the README on `main`.
 
 Please create an issue first before you make a pull request.
 
