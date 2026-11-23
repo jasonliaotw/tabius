@@ -195,15 +195,18 @@ The extension is good to go.
 
 Releases are built and published automatically by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
 
-1. Bump the version in `public/manifest.json` (and `package.json`), commit and push.
-2. Push a matching tag:
+1. Bump the version in `public/manifest.json` (and `package.json`).
+2. Add a change summary section to this README whose heading contains the version, e.g. `## What's new in v2.0.7`. That section (up to the next `## ` heading) becomes the release notes; installation instructions stay in the [Installation](#installation) section above. Commit and push.
+3. Push a matching tag:
 
    ```
    git tag v2.0.7
    git push origin v2.0.7
    ```
 
-The workflow type-checks and builds the extension, then creates a GitHub Release with `tabius-<version>.zip` attached. It stops if the tag doesn't match the manifest version.
+The workflow type-checks and builds the extension, then creates a GitHub Release with `tabius-<version>.zip` attached. It stops if the tag doesn't match the manifest version or the README has no section for that version.
+
+To refresh an existing release (for example after editing its README section), open **Actions → Release → Run workflow** and enter the tag (e.g. `v2.0.7`). The notes and the zip are replaced.
 
 Please create an issue first before you make a pull request.
 

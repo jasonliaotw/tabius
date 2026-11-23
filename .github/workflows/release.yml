@@ -4,11 +4,23 @@ name: Release
 #   git tag v2.0.7
 #   git push origin v2.0.7
 # The tag must match "version" in public/manifest.json.
+#
+# The release notes are the README.md section whose "## " heading contains
+# the version (e.g. "## What's new in v2.0.7"), up to the next "## " heading.
+# Installation instructions live in README.md, not in the release.
+#
+# To refresh an existing release (notes and zip), run this workflow manually
+# from the Actions tab and enter the tag.
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to (re)publish, e.g. v2.0.7"
+        required: true
 
 permissions:
   contents: write # create the release and upload the zip
@@ -16,9 +28,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -29,13 +45,30 @@ jobs:
       - name: Check tag matches manifest version
         id: version
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${TAG#v}"
           MANIFEST_VERSION="$(node -p "require('./public/manifest.json').version")"
           if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $MANIFEST_VERSION"
+            echo "::error::Tag $TAG does not match manifest version $MANIFEST_VERSION"
             exit 1
           fi
           echo "version=$MANIFEST_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes from README
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk -v ver="v$VERSION" '
+            /^## / {
+              if (found) exit
+              if (index($0, ver)) { found = 1; next }
+            }
+            found
+          ' README.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::README.md has no '## ... v$VERSION' section with the change summary"
+            exit 1
+          fi
+          cat notes.md
 
       - name: Install dependencies
         run: npm ci
@@ -53,27 +86,16 @@ jobs:
           cp -r dist "$NAME"
           zip -r "$NAME.zip" "$NAME"
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          cat > notes.md <<'EOF'
-          ## Install / 安裝
-
-          1. Download `tabius-VERSION.zip` below and extract it to a folder you will keep.
-             下載下方的 `tabius-VERSION.zip`，解壓縮到一個固定的資料夾（之後不要刪除或搬移）。
-          2. Open `chrome://extensions` (Edge: `edge://extensions`, Brave: `brave://extensions`) and turn on **Developer mode**.
-             開啟擴充功能頁面，打開「開發人員模式」。
-          3. Click **Load unpacked** and select the extracted `tabius-VERSION` folder.
-             點「載入未封裝項目」，選擇解壓縮後的 `tabius-VERSION` 資料夾。
-
-          **Updating / 更新**：extract the new zip over the same folder, then click **Reload** on the Tabius card in the extensions page.
-          解壓縮新版 zip 覆蓋同一個資料夾，再到擴充功能頁面按 Tabius 的「重新載入」。
-
-          EOF
-          sed -i "s/VERSION/$VERSION/g" notes.md
-          gh release create "$GITHUB_REF_NAME" "tabius-$VERSION.zip" \
-            --title "Tabius $VERSION" \
-            --notes-file notes.md \
-            --generate-notes
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --title "Tabius $VERSION" --notes-file notes.md
+            gh release upload "$TAG" "tabius-$VERSION.zip" --clobber
+          else
+            gh release create "$TAG" "tabius-$VERSION.zip" \
+              --title "Tabius $VERSION" \
+              --notes-file notes.md
+          fi
