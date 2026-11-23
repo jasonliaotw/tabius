@@ -1,13 +1,13 @@
-// Right-click menu: blacklist the current tab's domain or tab group.
+// Right-click menu: blacklist the current tab's domain, or lock its tab group.
 // Only imported by the background service worker.
 
 import { getHostname, normalizeUrlKeyword } from "../const";
 import {
-	addGroupToBlocklist,
+	lockGroup,
 	addUrlToBlocklist,
-	deleteGroupFromBlocklist,
+	unlockGroup,
 	deleteUrlFromBlocklist,
-	isGroupNameBlocked,
+	isGroupNameLocked,
 	isTheURLNative,
 	isValidUrl,
 	withBlock,
@@ -99,7 +99,7 @@ async function refreshMenusForTab(tab?: chrome.tabs.Tab) {
 			title: await tr("menu_group_no_name"),
 			enabled: false,
 		});
-	} else if (await isGroupNameBlocked(groupTitle)) {
+	} else if (await isGroupNameLocked(groupTitle)) {
 		updateMenu(MENU_GROUP, {
 			title: await tr("menu_group_remove", { group: groupTitle }),
 			enabled: true,
@@ -163,9 +163,9 @@ async function handleMenuClick(
 	} else if (info.menuItemId === MENU_GROUP) {
 		const groupTitle = await getGroupTitle(tab.groupId);
 		if (!groupTitle?.trim()) return;
-		changed = (await isGroupNameBlocked(groupTitle))
-			? await deleteGroupFromBlocklist(groupTitle)
-			: await addGroupToBlocklist(groupTitle);
+		changed = (await isGroupNameLocked(groupTitle))
+			? await unlockGroup(groupTitle)
+			: await lockGroup(groupTitle);
 	}
 
 	if (changed) {

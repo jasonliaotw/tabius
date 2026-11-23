@@ -97,14 +97,14 @@ const en = {
 	settings_maximum_hint_2: "(not applicable). 2 - 999 = maximum number of tabs.",
 	settings_lonely: "Remove group when there is only 1 tab left",
 	settings_lonely_hint:
-		"Hint: If the number of tab in a group becomes 1, this will ungroup the remaining 'lonely' tab.",
+		"Hint: If the number of tab in a group becomes 1, this will ungroup the remaining 'lonely' tab. Locked tab groups are never removed.",
 	settings_autocollapse: "Auto collapse inactive tab groups",
 	settings_autocollapse_hint:
 		"Hint: if the current tab is not part of a tab group, the extension will collapse all other tab groups automatically.",
 	settings_section_general: "General Settings",
 	settings_save: "Save Settings",
 	settings_save_hint:
-		"The button above saves the general settings. Custom rules, blacklist and quick tab switch changes below are saved automatically.",
+		"The button above saves the general settings. Custom rules, blacklisted sites, locked tab groups and quick tab switch changes below are saved automatically.",
 	toast_settings_saved: "Settings Saved",
 
 	// custom rules
@@ -113,7 +113,7 @@ const en = {
 	custom_alias_label: "Short Name or Alias",
 	custom_color_label: "Group Color",
 	custom_hint:
-		'Enter one or more comma-separated keywords (for example: github, youtube, docs.example.com). You do not need to include https://. A loaded page whose domain contains a keyword uses this rule\'s name and color. Add a path (e.g. "github.com/myorg") to match only pages under that path. Query strings are ignored, matching is case-insensitive and duplicate keywords are ignored. A tab that navigates to a matching page is moved to this group even if it is in another group; reloading a page keeps its current group. Pinned tabs and tabs in blacklisted groups are left untouched.',
+		'Enter one or more comma-separated keywords (for example: github, youtube, docs.example.com). You do not need to include https://. A loaded page whose domain contains a keyword uses this rule\'s name and color. Add a path (e.g. "github.com/myorg") to match only pages under that path. Query strings are ignored, matching is case-insensitive and duplicate keywords are ignored. A tab that navigates to a matching page is moved to this group even if it is in another group; reloading a page keeps its current group. Pinned tabs and tabs in locked groups are left untouched; a rule can still add tabs to a locked group.',
 	custom_existing: "Modify Existing Rules",
 	custom_empty: "No Custom rules yet. Create a rule for a specific site above.",
 	toast_enter_keyword: "Please enter at least one URL keyword.",
@@ -122,24 +122,29 @@ const en = {
 	toast_rule_deleted: "Custom rule deleted",
 	toast_rule_updated: "Custom Rule updated.",
 
-	// blacklist
-	block_title: "Blacklisted Sites & Tab Groups",
-	block_type: "Type",
-	block_type_domain: "Domain",
-	block_type_group: "Tab group",
+	// blacklisted sites
+	block_title: "Blacklisted Sites",
 	block_label_domain: "Domain or URL",
-	block_label_group: "Tab group name",
 	block_hint:
-		'Domain: enter a website domain or URL, e.g. "wikipedia.org" or "https://www.wikipedia.org" (https:// and www. are optional). A site is blacklisted when its domain contains the entry, so "wikipedia.org" also covers "en.wikipedia.org". Add a path (e.g. "github.com/myorg") to only match pages under that path. Tabs opened from, or loaded on, blacklisted sites are not grouped. Tab group: enter a group name (case-insensitive). Tabs opened from links inside that group will not follow it into the group, and Tabius will not create a group with that name for them. Pages matching a custom rule for that group are still added to it. You can also right-click any page and use the Tabius menu.',
-	block_list: "Block list",
-	block_empty: "No Blacklisting rules yet. Blacklist a site or a tab group above.",
+		'Enter a website domain or URL, e.g. "wikipedia.org" or "https://www.wikipedia.org" (https:// and www. are optional). A site is blacklisted when its domain contains the entry, so "wikipedia.org" also covers "en.wikipedia.org". Add a path (e.g. "github.com/myorg") to only match pages under that path. Tabs opened from, or loaded on, blacklisted sites are not grouped (except inside a locked group). You can also right-click any page and use the Tabius menu.',
+	block_list: "Blacklisted sites",
+	block_empty: "No blacklisted sites yet. Add a site above.",
 	toast_invalid_domain: "Please enter a valid domain or url.",
-	toast_enter_block_group: "Please enter a tab group name.",
-	toast_group_already_blocked: "This tab group is already blacklisted.",
 	toast_site_already_blocked: "This site is already blacklisted.",
-	toast_block_group_saved: "Blacklisted tab group saved.",
 	toast_block_site_saved: "Blacklisted site saved.",
-	toast_block_deleted: "Blacklist entry deleted.",
+	toast_block_deleted: "Blacklisted site deleted.",
+
+	// locked tab groups
+	lock_title: "Locked Tab Groups",
+	lock_label: "Tab group name",
+	lock_hint:
+		'Enter a tab group name (case-insensitive). Tabius never moves tabs out of a locked group: tabs opened from links inside it stay in it, even for blacklisted sites, a full group or a different domain under "same domain" grouping; other custom rules do not move its tabs away, and it is not dissolved when only one tab is left. Only custom rules add tabs to it: pages matching a custom rule for that group are still added to it. You can also right-click a tab in the group and use the Tabius menu.',
+	lock_list: "Locked groups",
+	lock_empty: "No locked tab groups yet. Add a group name above.",
+	toast_enter_lock_group: "Please enter a tab group name.",
+	toast_group_already_locked: "This tab group is already locked.",
+	toast_lock_saved: "Locked tab group saved.",
+	toast_lock_deleted: "Locked tab group deleted.",
 
 	// quick switch shortcut
 	quick_title: "Quick Tab Switch",
@@ -157,11 +162,11 @@ const en = {
 	menu_domain_unavailable: "Blacklist this domain (not available on this page)",
 	menu_domain_add: 'Blacklist domain "{domain}"',
 	menu_domain_remove: 'Remove "{domain}" from blacklist',
-	menu_group_default: "Blacklist this tab group",
-	menu_group_not_in_group: "Blacklist this tab group (tab is not in a group)",
-	menu_group_no_name: "Blacklist this tab group (group has no name)",
-	menu_group_add: 'Blacklist group "{group}"',
-	menu_group_remove: 'Remove group "{group}" from blacklist',
+	menu_group_default: "Lock this tab group",
+	menu_group_not_in_group: "Lock this tab group (tab is not in a group)",
+	menu_group_no_name: "Lock this tab group (group has no name)",
+	menu_group_add: 'Lock group "{group}"',
+	menu_group_remove: 'Unlock group "{group}"',
 };
 
 export type MessageKey = keyof typeof en;
@@ -247,14 +252,14 @@ const zh_TW: Record<MessageKey, string> = {
 	settings_maximum_hint_2: "（不適用）。2 - 999 = 分頁數上限。",
 	settings_lonely: "群組只剩 1 個分頁時自動解散",
 	settings_lonely_hint:
-		"提示：當群組中的分頁數降到 1 個時，會將剩下的那個分頁移出群組。",
+		"提示：當群組中的分頁數降到 1 個時，會將剩下的那個分頁移出群組。鎖定群組不會被解散。",
 	settings_autocollapse: "自動收合未使用的分頁群組",
 	settings_autocollapse_hint:
 		"提示：切換分頁時，會自動收合目前分頁所在群組以外的所有群組。",
 	settings_section_general: "一般設定",
 	settings_save: "儲存設定",
 	settings_save_hint:
-		"上方按鈕只儲存一般設定；下方的自訂規則、黑名單與快速切換分頁的變更會自動儲存。",
+		"上方按鈕只儲存一般設定；下方的自訂規則、黑名單網站、鎖定群組與快速切換分頁的變更會自動儲存。",
 	toast_settings_saved: "設定已儲存",
 
 	custom_title: "自訂分組規則",
@@ -262,7 +267,7 @@ const zh_TW: Record<MessageKey, string> = {
 	custom_alias_label: "群組名稱",
 	custom_color_label: "群組顏色",
 	custom_hint:
-		"輸入一個或多個以逗號分隔的關鍵字（例如：github, youtube, docs.example.com），不需要加 https://。網域包含關鍵字的頁面載入後，會套用這條規則的群組名稱與顏色。加上路徑（例如「github.com/myorg」）則只比對該路徑底下的頁面。不比對網址的查詢參數（?後面的部分），不分大小寫，重複的關鍵字會被忽略。分頁開啟符合的頁面時，即使已在其他群組中也會被移到此群組；單純重新整理頁面則會留在原本的群組。已釘選的分頁和黑名單群組中的分頁不會被移動。",
+		"輸入一個或多個以逗號分隔的關鍵字（例如：github, youtube, docs.example.com），不需要加 https://。網域包含關鍵字的頁面載入後，會套用這條規則的群組名稱與顏色。加上路徑（例如「github.com/myorg」）則只比對該路徑底下的頁面。不比對網址的查詢參數（?後面的部分），不分大小寫，重複的關鍵字會被忽略。分頁開啟符合的頁面時，即使已在其他群組中也會被移到此群組；單純重新整理頁面則會留在原本的群組。已釘選的分頁和鎖定群組中的分頁不會被移動；但規則仍可把分頁加入鎖定群組。",
 	custom_existing: "修改現有規則",
 	custom_empty: "目前還沒有自訂規則，請在上方為特定網站建立規則。",
 	toast_enter_keyword: "請至少輸入一個網址關鍵字。",
@@ -271,23 +276,27 @@ const zh_TW: Record<MessageKey, string> = {
 	toast_rule_deleted: "已刪除自訂規則",
 	toast_rule_updated: "已更新自訂規則。",
 
-	block_title: "黑名單網站與分頁群組",
-	block_type: "類型",
-	block_type_domain: "網域",
-	block_type_group: "分頁群組",
+	block_title: "黑名單網站",
 	block_label_domain: "網域或網址",
-	block_label_group: "分頁群組名稱",
 	block_hint:
-		"網域：輸入網站網域或網址，例如「wikipedia.org」或「https://www.wikipedia.org」（https:// 和 www. 可省略）。網域包含此項目的網站都會被列入黑名單，所以「wikipedia.org」也涵蓋「en.wikipedia.org」。加上路徑（例如「github.com/myorg」）則只比對該路徑底下的頁面。從黑名單網站開出或在黑名單網站上載入的分頁不會被分組。分頁群組：輸入群組名稱（不分大小寫），從該群組內的分頁點連結開出的新分頁不會跟著加入該群組，Tabius 也不會為它們建立該名稱的群組；但符合自訂規則的網站仍會被加入該群組。你也可以在任何網頁上按右鍵，使用 Tabius 選單。",
-	block_list: "黑名單列表",
-	block_empty: "目前還沒有黑名單，請在上方加入網站或分頁群組。",
+		"輸入網站網域或網址，例如「wikipedia.org」或「https://www.wikipedia.org」（https:// 和 www. 可省略）。網域包含此項目的網站都會被列入黑名單，所以「wikipedia.org」也涵蓋「en.wikipedia.org」。加上路徑（例如「github.com/myorg」）則只比對該路徑底下的頁面。從黑名單網站開出或在黑名單網站上載入的分頁不會被分組（鎖定群組內除外）。你也可以在任何網頁上按右鍵，使用 Tabius 選單。",
+	block_list: "黑名單網站列表",
+	block_empty: "目前還沒有黑名單網站，請在上方加入網站。",
 	toast_invalid_domain: "請輸入有效的網域或網址。",
-	toast_enter_block_group: "請輸入分頁群組名稱。",
-	toast_group_already_blocked: "這個分頁群組已經在黑名單中。",
 	toast_site_already_blocked: "這個網站已經在黑名單中。",
-	toast_block_group_saved: "已將分頁群組加入黑名單。",
 	toast_block_site_saved: "已將網站加入黑名單。",
-	toast_block_deleted: "已刪除黑名單項目。",
+	toast_block_deleted: "已刪除黑名單網站。",
+
+	lock_title: "鎖定群組",
+	lock_label: "分頁群組名稱",
+	lock_hint:
+		"輸入分頁群組名稱（不分大小寫）。Tabius 不會把分頁移出鎖定群組：從群組內的分頁點連結開出的新分頁會留在群組中，即使是黑名單網站、群組已達分頁數上限，或在「相同網域」分組下開到不同網域也一樣；其他自訂規則也不會把群組內的分頁移走，只剩 1 個分頁時也不會被解散。只有自訂規則會把分頁加入該群組：符合該群組自訂規則的網站仍會被加入。你也可以在群組內的分頁上按右鍵，使用 Tabius 選單。",
+	lock_list: "鎖定群組列表",
+	lock_empty: "目前還沒有鎖定群組，請在上方輸入群組名稱。",
+	toast_enter_lock_group: "請輸入分頁群組名稱。",
+	toast_group_already_locked: "這個分頁群組已經鎖定。",
+	toast_lock_saved: "已鎖定分頁群組。",
+	toast_lock_deleted: "已刪除鎖定群組。",
 
 	quick_title: "快速切換分頁",
 	quick_current: "快速鍵",
@@ -303,11 +312,11 @@ const zh_TW: Record<MessageKey, string> = {
 	menu_domain_unavailable: "將此網域加入黑名單（此頁面無法使用）",
 	menu_domain_add: "將網域「{domain}」加入黑名單",
 	menu_domain_remove: "將「{domain}」移出黑名單",
-	menu_group_default: "將此分頁群組加入黑名單",
-	menu_group_not_in_group: "將此分頁群組加入黑名單（分頁不在群組中）",
-	menu_group_no_name: "將此分頁群組加入黑名單（群組沒有名稱）",
-	menu_group_add: "將群組「{group}」加入黑名單",
-	menu_group_remove: "將群組「{group}」移出黑名單",
+	menu_group_default: "鎖定此分頁群組",
+	menu_group_not_in_group: "鎖定此分頁群組（分頁不在群組中）",
+	menu_group_no_name: "鎖定此分頁群組（群組沒有名稱）",
+	menu_group_add: "鎖定群組「{group}」",
+	menu_group_remove: "解除鎖定群組「{group}」",
 };
 
 const messages: Record<Language, Record<MessageKey, string>> = { en, zh_TW };

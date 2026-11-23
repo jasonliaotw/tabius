@@ -1,8 +1,8 @@
 # Tabius - Automatic Tab Grouping Assistant
 
-### Current version: 2.0.7 (this fork)
+### Current version: 2.0.8 (this fork)
 
-> This is a fork of [FaisalBinAhmed/tabius](https://github.com/FaisalBinAhmed/tabius). See [What's new in v2.0.7](#whats-new-in-v207) and [Changes in this fork](#changes-in-this-fork-v206) below. The store listings below are for the original extension.
+> This is a fork of [FaisalBinAhmed/tabius](https://github.com/FaisalBinAhmed/tabius). See [What's new in v2.0.8](#whats-new-in-v208), [v2.0.7](#whats-new-in-v207) and [Changes in this fork](#changes-in-this-fork-v206) below. The store listings below are for the original extension.
 
 Published at [Chrome Web Store](https://chrome.google.com/webstore/detail/tabius-automatic-tab-grou/enceimdjnaccoeikjobaeicfodlfnijp?hl=en) and [Microsoft Store](https://microsoftedge.microsoft.com/addons/detail/tabius-tab-grouping-ass/filcmnpmbooeiloehikfjlligcgnnibb)
 
@@ -73,6 +73,33 @@ The extension is packed with useful features like:
 - ..and many more features.
 
 I created this extension from my need. I use tab groups all the time and the extension helps enhance this feature.
+
+## What's new in v2.0.8
+
+_2026-11-24_
+
+### Locked tab groups (replaces blacklisted tab groups)
+
+- Blacklisted tab groups are now called **Locked tab groups** and have their own section on the settings page. Existing entries move there automatically.
+- **Tabius never moves tabs out of a locked group**: tabs opened from links inside it (including Ctrl+click and middle click) stay in the group, even for blacklisted sites, a full group (maximum tabs per group) or a different domain under "same domain" grouping. Other custom rules don't move its tabs away.
+- A locked group is **not dissolved** when only one tab is left ("Remove group when there is only 1 tab left").
+- **Custom rules can still add tabs** to a locked group, including creating it when it doesn't exist yet.
+- **Right-click menu**: "Lock group" / "Unlock group" for the current tab group. The domain item still blacklists or un-blacklists the current site.
+- The **Blacklisted Sites** section now only lists domains.
+
+<details>
+<summary><b>中文摘要</b></summary>
+
+**鎖定群組（取代黑名單群組）**
+
+- 「黑名單群組」改名為「**鎖定群組**」，在設定頁中有獨立的區塊；原本的項目會自動出現在這裡。
+- **Tabius 不會把分頁移出鎖定群組**：從群組內點連結開出的新分頁（包含 Ctrl+點擊、滑鼠中鍵）會留在群組中，即使是黑名單網站、群組已達分頁數上限，或在「相同網域」分組下開到不同網域也一樣；其他自訂規則也不會把群組內的分頁移走。
+- 鎖定群組只剩 1 個分頁時**不會被解散**（「群組只剩 1 個分頁時自動解散」）。
+- **自訂規則仍可把分頁加入**鎖定群組，群組不存在時也會建立。
+- **右鍵選單**：對目前的分頁群組「鎖定群組」／「解除鎖定群組」；網域選項仍是將目前的網站加入／移出黑名單。
+- 「**黑名單網站**」區塊現在只列出網域。
+
+</details>
 
 ## What's new in v2.0.7
 

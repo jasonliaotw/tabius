@@ -2,7 +2,7 @@ import {
 	BlockList,
 	EXCLUDED_URL,
 	getOneStorageItem,
-	isGroupBlockEntry,
+	isLockedGroupEntry,
 	matchesUrlKeyword,
 	normalizeGroupName,
 	normalizeUrlKeyword,
@@ -35,13 +35,13 @@ export function isValidUrl(inputurl: string) {
 }
 
 function isUrlBlockedBy(item: BlockRule | undefined, url: string) {
-	if (!item?.blockedUrl || isGroupBlockEntry(item)) return false;
+	if (!item?.blockedUrl || isLockedGroupEntry(item)) return false;
 	return matchesUrlKeyword(normalizeUrlKeyword(item.blockedUrl), url);
 }
 
-function isGroupBlockedBy(item: BlockRule | undefined, groupName: string) {
+function isGroupLockedBy(item: BlockRule | undefined, groupName: string) {
 	return (
-		isGroupBlockEntry(item) &&
+		isLockedGroupEntry(item) &&
 		!!groupName &&
 		normalizeGroupName(item?.groupName) === groupName
 	);
@@ -75,20 +75,20 @@ export async function withBlock(url?: string): Promise<boolean> {
 	return blocklist.some((item) => isUrlBlockedBy(item, url));
 }
 
-// returns true if a tab group with this name is blacklisted
-export async function isGroupNameBlocked(groupName?: string) {
+// returns true if a tab group with this name is locked
+export async function isGroupNameLocked(groupName?: string) {
 	const name = normalizeGroupName(groupName);
 	if (!name) return false;
 	const blocklist = await getBlocklist();
-	return blocklist.some((item) => isGroupBlockedBy(item, name));
+	return blocklist.some((item) => isGroupLockedBy(item, name));
 }
 
-// returns true if the tab group with this id has a blacklisted name
-export async function isGroupBlocked(groupId?: number) {
+// returns true if the tab group with this id has a locked name
+export async function isGroupLocked(groupId?: number) {
 	if (groupId === undefined || groupId === -1) return false;
 	try {
 		const group = await chrome.tabGroups.get(groupId);
-		return await isGroupNameBlocked(group.title);
+		return await isGroupNameLocked(group.title);
 	} catch {
 		return false;
 	}
@@ -120,13 +120,13 @@ export async function deleteUrlFromBlocklist(url?: string) {
 	return saveBlocklist(blocklist.filter((item) => !isUrlBlockedBy(item, url)));
 }
 
-export async function addGroupToBlocklist(groupName?: string) {
+export async function lockGroup(groupName?: string) {
 	const trimmed = (groupName ?? "").trim();
 	if (!trimmed) return false;
 
 	const blocklist = await getBlocklist();
-	if (blocklist.some((item) => isGroupBlockedBy(item, normalizeGroupName(trimmed)))) {
-		return true; // already blacklisted
+	if (blocklist.some((item) => isGroupLockedBy(item, normalizeGroupName(trimmed)))) {
+		return true; // already locked
 	}
 
 	return saveBlocklist([
@@ -135,13 +135,13 @@ export async function addGroupToBlocklist(groupName?: string) {
 	]);
 }
 
-export async function deleteGroupFromBlocklist(groupName?: string) {
+export async function unlockGroup(groupName?: string) {
 	const name = normalizeGroupName(groupName);
 	if (!name) return false;
 
 	const blocklist = await getBlocklist();
 	return saveBlocklist(
-		blocklist.filter((item) => !isGroupBlockedBy(item, name))
+		blocklist.filter((item) => !isGroupLockedBy(item, name))
 	);
 }
 

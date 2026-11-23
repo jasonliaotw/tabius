@@ -178,6 +178,7 @@ const Settings = () => {
 					<a href="#general">{t("settings_section_general")}</a>
 					<a href="#customrules">{t("custom_title")}</a>
 					<a href="#blacklist">{t("block_title")}</a>
+					<a href="#lockedgroups">{t("lock_title")}</a>
 					<a href="#quickswitch">{t("quick_title")}</a>
 				</nav>
 
@@ -287,7 +288,8 @@ const Settings = () => {
 				</section>
 
 				<CustomRulesSection />
-				<BlacklistSection />
+				<BlacklistSection kind="domain" />
+				<BlacklistSection kind="group" />
 				<QuickSwitchSection />
 			</div>
 		</div>

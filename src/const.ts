@@ -108,8 +108,9 @@ export type GROUP_NAMING =
 	| "nameless"
 	| "title";
 
-// A blacklist entry is either a domain/url keyword (the original format,
-// `type` is missing on entries saved by older versions) or a tab group name.
+// A "blocklist" entry is either a blacklisted domain/url keyword (the original
+// format, `type` is missing on entries saved by older versions) or the name of
+// a locked tab group.
 export type BlockListType = "domain" | "group";
 
 export type BlockList = {
@@ -119,7 +120,7 @@ export type BlockList = {
 	groupName?: string; // group entries
 };
 
-export function isGroupBlockEntry(item?: BlockList) {
+export function isLockedGroupEntry(item?: BlockList) {
 	return item?.type === "group";
 }
 

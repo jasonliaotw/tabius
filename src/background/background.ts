@@ -9,8 +9,8 @@ import {
 	normalizeGroupName,
 } from "../const";
 import {
-	isGroupBlocked,
-	isGroupNameBlocked,
+	isGroupLocked,
+	isGroupNameLocked,
 	isTheURLNative,
 	withBlock,
 } from "../helpers";
@@ -112,6 +112,12 @@ async function applyRulesToLoadedTab(
 	}
 
 	try {
+		// Tabius never moves a tab out of a locked group - not for a
+		// blacklisted site, and not to follow a custom rule into another group.
+		if (await isGroupLocked(tab.groupId)) {
+			return;
+		}
+
 		if (await withBlock(tab.url)) {
 			if (tab.groupId !== -1) {
 				await chrome.tabs.ungroup(tabId);
@@ -120,16 +126,13 @@ async function applyRulesToLoadedTab(
 		}
 
 		// A tab that is already grouped is only moved by a custom rule when it
-		// navigated to a new URL (not on reload), and never out of a
-		// blacklisted group.
-		if (tab.groupId !== -1) {
-			if (!navigated || (await isGroupBlocked(tab.groupId))) {
-				return;
-			}
+		// navigated to a new URL (not on reload).
+		if (tab.groupId !== -1 && !navigated) {
+			return;
 		}
 
-		// Custom rules are explicit, so they also apply to blacklisted groups:
-		// a blacklisted group only stops tabs from *following their opener* in.
+		// Custom rules are explicit, so they may also move tabs *into* a
+		// locked group: only the rule decides, the group lock is not checked.
 		const rule = await withCustomRule(tab.url);
 		if (!rule) {
 			return;
@@ -258,6 +261,23 @@ async function createTab(newtab: chrome.tabs.Tab, attempt = 0) {
 		return;
 	}
 
+	// The opener is in a locked tab group: the new tab stays in that group
+	// (chrome adds tabs opened from a grouped tab to it by itself), whatever the
+	// blacklisted sites, the maximum tabs per group or the same domain option say.
+	if (await isGroupLocked(openerTabInfo.groupId)) {
+		try {
+			await chrome.tabs.group({
+				tabIds: tab.id!,
+				groupId: openerTabInfo.groupId,
+			});
+		} catch (error) {
+			if (isTabDragError(error)) {
+				retryLater(() => createTab(tab, attempt + 1), attempt, 50);
+			}
+		}
+		return;
+	}
+
 	// checking if a blocking rule exists if yes stop running the function
 	const blockFound = await withBlock(openerTabInfo?.url);
 	if (blockFound) {
@@ -267,17 +287,6 @@ async function createTab(newtab: chrome.tabs.Tab, attempt = 0) {
 		try {
 			ungroupOneTab(tab.id);
 		} catch (error) {}
-		return;
-	}
-
-	// the opener is in a blacklisted tab group: keep the new tab out of it
-	// (chrome adds tabs opened from a grouped tab to that group by itself).
-	// If the new page matches a custom rule for that group, onUpdated puts it
-	// back in once it has loaded.
-	if (await isGroupBlocked(openerTabInfo.groupId)) {
-		try {
-			await chrome.tabs.ungroup(tab.id!);
-		} catch {}
 		return;
 	}
 
@@ -357,12 +366,16 @@ async function createTab(newtab: chrome.tabs.Tab, attempt = 0) {
 				// by default chrome will group the tab anyway if it was opened from a group, NOT ANYMORE
 			}
 			// For a new group, work out its name first so we never create a group
-			// whose name is blacklisted.
+			// whose name is locked - unless a custom rule named it: custom
+			// rules may put tabs into a locked group.
 			let naming: chrome.tabGroups.UpdateProperties | undefined;
 			if (newGroup) {
 				const resolved = await resolveGroupProperties(openerTabInfo);
 				naming = resolved.properties;
-				if (await isGroupNameBlocked(naming.title)) {
+				if (
+					!resolved.fromCustomRule &&
+					(await isGroupNameLocked(naming.title))
+				) {
 					return;
 				}
 
@@ -524,9 +537,13 @@ chrome.tabs.onRemoved.addListener(async (_tabId, removeInfo) => {
 });
 
 // ungroups the tab if it is the only one left in its group
+// (a locked group is never dissolved)
 async function ungroupIfLonely(tabGroupId: number) {
 	const tabs = await chrome.tabs.query({ groupId: tabGroupId });
 	if (tabs.length !== 1) {
+		return false;
+	}
+	if (await isGroupLocked(tabGroupId)) {
 		return false;
 	}
 	const tabId = tabs[0].id;
