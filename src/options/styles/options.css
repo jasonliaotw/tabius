@@ -88,6 +88,33 @@ html {
 	padding: 10px;
 	border-radius: 5px;
 }
+.shortcutkey {
+	font-family: inherit;
+	font-size: medium;
+	color: #fff;
+	background-color: #0d0d0d;
+	border: 1px solid #5f6368;
+	border-radius: 4px;
+	padding: 4px 10px;
+	min-width: 60px;
+	text-align: center;
+}
+.unitlabel {
+	margin-left: 8px;
+}
+.shortcutbutton {
+	font-size: medium;
+	border: 0;
+	border-radius: 3px;
+	background-color: #35363a;
+	color: #fff;
+	padding: 6px 14px;
+	margin-left: 15px;
+	cursor: pointer;
+}
+.shortcutbutton:hover {
+	background-color: #4a4b50;
+}
 .savehint {
 	text-align: center;
 }
@@ -109,7 +136,8 @@ html {
 	background-color: #0d0d0d;
 	color: #fff;
 }
-#maximum {
+#maximum,
+#quickswitchdelay {
 	border-radius: 3px;
 	border: 1px solid white;
 	padding: 5px;

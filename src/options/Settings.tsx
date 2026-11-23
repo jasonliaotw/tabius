@@ -9,6 +9,7 @@ import {
 	tabiusAscii,
 } from "../const";
 import BlacklistSection from "./BlacklistSection";
+import QuickSwitchSection from "./QuickSwitchSection";
 import ToastContextProvider, { ToastContext } from "../context/ToastContext";
 import I18nProvider, { useI18n } from "../context/I18nContext";
 import {
@@ -177,6 +178,7 @@ const Settings = () => {
 					<a href="#general">{t("settings_section_general")}</a>
 					<a href="#customrules">{t("custom_title")}</a>
 					<a href="#blacklist">{t("block_title")}</a>
+					<a href="#quickswitch">{t("quick_title")}</a>
 				</nav>
 
 				<section id="general">
@@ -286,6 +288,7 @@ const Settings = () => {
 
 				<CustomRulesSection />
 				<BlacklistSection />
+				<QuickSwitchSection />
 			</div>
 		</div>
 	);

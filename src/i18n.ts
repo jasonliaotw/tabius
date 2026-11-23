@@ -104,7 +104,7 @@ const en = {
 	settings_section_general: "General Settings",
 	settings_save: "Save Settings",
 	settings_save_hint:
-		"The button above saves the general settings. Custom rules and blacklist changes below are saved automatically.",
+		"The button above saves the general settings. Custom rules, blacklist and quick tab switch changes below are saved automatically.",
 	toast_settings_saved: "Settings Saved",
 
 	// custom rules
@@ -140,6 +140,17 @@ const en = {
 	toast_block_group_saved: "Blacklisted tab group saved.",
 	toast_block_site_saved: "Blacklisted site saved.",
 	toast_block_deleted: "Blacklist entry deleted.",
+
+	// quick switch shortcut
+	quick_title: "Quick Tab Switch",
+	quick_current: "Keyboard shortcut",
+	quick_not_set: "Not set",
+	quick_change: "Change shortcut",
+	quick_hint:
+		"Press the shortcut to jump back to the tab you used before (in any window). Press it again quickly to keep going further back through your recently used tabs; stop pressing and the tab you landed on becomes the current one, so the next press takes you back. The default is Alt+Q; if it is not set, another extension may already use it. Shortcuts are changed on the browser's extension shortcuts page.",
+	quick_delay: "Consecutive press window",
+	quick_delay_hint:
+		"Presses within this time (counted from the previous press) keep going further back through your recent tabs; after it passes, the next press goes back to the previous tab again. {min} - {max} ms, default {default} ms. Saved automatically.",
 
 	// right-click menu
 	menu_domain_default: "Blacklist this domain",
@@ -243,7 +254,7 @@ const zh_TW: Record<MessageKey, string> = {
 	settings_section_general: "一般設定",
 	settings_save: "儲存設定",
 	settings_save_hint:
-		"上方按鈕只儲存一般設定；下方的自訂規則與黑名單變更會自動儲存。",
+		"上方按鈕只儲存一般設定；下方的自訂規則、黑名單與快速切換分頁的變更會自動儲存。",
 	toast_settings_saved: "設定已儲存",
 
 	custom_title: "自訂分組規則",
@@ -277,6 +288,16 @@ const zh_TW: Record<MessageKey, string> = {
 	toast_block_group_saved: "已將分頁群組加入黑名單。",
 	toast_block_site_saved: "已將網站加入黑名單。",
 	toast_block_deleted: "已刪除黑名單項目。",
+
+	quick_title: "快速切換分頁",
+	quick_current: "快速鍵",
+	quick_not_set: "未設定",
+	quick_change: "變更快速鍵",
+	quick_hint:
+		"按下快速鍵即可切換回上一個使用的分頁（可跨視窗）。在短時間內連續按，會依序往更早使用過的分頁切換；停止按鍵後，停留的分頁就成為目前分頁，再按一次即可切回原本的分頁。預設為 Alt+Q；若顯示未設定，可能已被其他擴充功能占用。快速鍵需在瀏覽器的擴充功能快速鍵頁面中變更。",
+	quick_delay: "連續按鍵間隔",
+	quick_delay_hint:
+		"在這段時間內（從上一次按鍵起算）再按，會繼續往更早使用過的分頁切換；超過這段時間後再按，則會切回上一個分頁。範圍 {min} - {max} 毫秒，預設 {default} 毫秒，變更後會自動儲存。",
 
 	menu_domain_default: "將此網域加入黑名單",
 	menu_domain_unavailable: "將此網域加入黑名單（此頁面無法使用）",

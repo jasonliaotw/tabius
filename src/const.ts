@@ -34,6 +34,23 @@ export type SavedGroup = {
 	tabs: chrome.tabs.Tab[];
 };
 
+// keyboard command for switching to the previously used tab (manifest.json)
+export const QUICK_SWITCH_COMMAND = "quick-switch";
+
+// how long (ms) after a press another press keeps going further back
+export const QUICK_SWITCH_DELAY_DEFAULT = 500;
+export const QUICK_SWITCH_DELAY_MIN = 200;
+export const QUICK_SWITCH_DELAY_MAX = 3000;
+
+export function normalizeQuickSwitchDelay(value: unknown) {
+	const ms = Number(value);
+	if (!Number.isFinite(ms)) return QUICK_SWITCH_DELAY_DEFAULT;
+	return Math.min(
+		QUICK_SWITCH_DELAY_MAX,
+		Math.max(QUICK_SWITCH_DELAY_MIN, Math.round(ms))
+	);
+}
+
 export type StorageKey =
 	| "lonely"
 	| "autocollapse"
@@ -45,7 +62,8 @@ export type StorageKey =
 	| "regardless"
 	| "savedgroups"
 	| "savedgroupids"
-	| "language";
+	| "language"
+	| "quickswitchdelay";
 
 export async function getOneStorageItem(itemKey: StorageKey) {
 	try {

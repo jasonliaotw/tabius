@@ -1,8 +1,8 @@
 # Tabius - Automatic Tab Grouping Assistant
 
-### Current version: 2.0.6 (this fork)
+### Current version: 2.0.7 (this fork)
 
-> This is a fork of [FaisalBinAhmed/tabius](https://github.com/FaisalBinAhmed/tabius). See [Changes in this fork](#changes-in-this-fork-v206) below. The store listings below are for the original extension.
+> This is a fork of [FaisalBinAhmed/tabius](https://github.com/FaisalBinAhmed/tabius). See [What's new in v2.0.7](#whats-new-in-v207) and [Changes in this fork](#changes-in-this-fork-v206) below. The store listings below are for the original extension.
 
 Published at [Chrome Web Store](https://chrome.google.com/webstore/detail/tabius-automatic-tab-grou/enceimdjnaccoeikjobaeicfodlfnijp?hl=en) and [Microsoft Store](https://microsoftedge.microsoft.com/addons/detail/tabius-tab-grouping-ass/filcmnpmbooeiloehikfjlligcgnnibb)
 
@@ -73,6 +73,29 @@ The extension is packed with useful features like:
 - ..and many more features.
 
 I created this extension from my need. I use tab groups all the time and the extension helps enhance this feature.
+
+## What's new in v2.0.7
+
+_2026-11-23_
+
+### Quick tab switch (keyboard shortcut)
+
+- Press **Alt+Q** (default) to jump back to the tab you used before, in any window.
+- Press it again quickly to keep going further back through your recently used tabs (like Alt+Tab). When you stop, the tab you landed on becomes the current one, so the next press takes you back.
+- Settings page → **Quick Tab Switch**: shows the current shortcut with a button to change it (on the browser's extension shortcuts page), and the **consecutive press window** (200 - 3000 ms, default 500 ms).
+- If the shortcut shows "Not set", another extension already uses Alt+Q; pick a different one on the shortcuts page. After updating an unpacked install with **Reload**, the browser may not assign the new default shortcut; set it once on the shortcuts page.
+
+<details>
+<summary><b>中文摘要</b></summary>
+
+**快速切換分頁（快速鍵）**
+
+- 按 **Alt+Q**（預設）即可切換回上一個使用的分頁，可跨視窗。
+- 短時間內連續按，會依序往更早使用過的分頁切換（類似 Alt+Tab）；停止按鍵後，停留的分頁就成為目前分頁，再按一次即可切回原本的分頁。
+- 設定頁 →「**快速切換分頁**」：顯示目前的快速鍵，並有按鈕可前往瀏覽器的擴充功能快速鍵頁面變更；可調整「**連續按鍵間隔**」（200 - 3000 毫秒，預設 500 毫秒）。
+- 若快速鍵顯示「未設定」，表示 Alt+Q 已被其他擴充功能占用，請在快速鍵頁面改用其他組合。以「重新載入」更新未封裝的擴充功能時，瀏覽器可能不會套用新的預設快速鍵，請到快速鍵頁面手動設定一次。
+
+</details>
 
 ## Changes in this fork (v2.0.6)
 

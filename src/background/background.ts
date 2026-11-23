@@ -15,8 +15,10 @@ import {
 	withBlock,
 } from "../helpers";
 import { registerContextMenus } from "./contextMenu";
+import { registerQuickSwitch } from "./quickSwitch";
 
 registerContextMenus();
+registerQuickSwitch();
 
 const TAB_DRAG_ERROR =
 	"Tabs cannot be edited right now (user may be dragging a tab).";

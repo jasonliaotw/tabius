@@ -3,7 +3,7 @@
 	"name": "Tabius - Automatic Tab Grouping Assistant",
 	"short_name": "Tabius",
 	"description": "An Automatic Tab Grouping Extension for Your Browser.",
-	"version": "2.0.6",
+	"version": "2.0.7",
 	"author": "Faisal Ahmed",
 	"background": {
 		"service_worker": "assets/background.js",
@@ -20,6 +20,15 @@
 	"options_ui": {
 		"page": "src/options/options.html",
 		"open_in_tab": true
+	},
+	"commands": {
+		"quick-switch": {
+			"suggested_key": {
+				"default": "Alt+Q",
+				"mac": "Alt+Q"
+			},
+			"description": "Switch to the previously used tab (press again quickly to go further back)"
+		}
 	},
 	"permissions": ["tabs", "tabGroups", "storage", "contextMenus", "webNavigation"]
 }
